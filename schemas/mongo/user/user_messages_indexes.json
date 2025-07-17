@@ -1,0 +1,14 @@
+[
+  {
+    "keys": { "_id": 1 },
+    "options": { "name": "_id_" }
+  },
+  {
+    "keys": { "timestamp": -1 },
+    "options": { "name": "timestamp_desc" }
+  },
+  {
+    "keys": { "room_id": 1, "timestamp": -1 },
+    "options": { "name": "room_timestamp" }
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "collMod": "user_messages",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["room_id", "sender_id", "type", "content", "created_at"],
+      "properties": {
+        "_id": {
+          "bsonType": ["objectId", "string"],
+          "description": "MongoDB will auto-generate if not provided. Must be ObjectId or string if present."
+        },
+        "room_id": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "sender_id": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "type": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "created_at": {
+          "bsonType": ["long", "int"],
+          "description": "Must be a number (timestamp) and is required."
+        },
+        "content": {
+          "bsonType": "object",
+          "description": "Content object is required and must contain exactly one type of message data.",
+          "properties": {
+            "join": { "bsonType": ["string", "null"] },
+            "leave": { "bsonType": ["string", "null"] },
+            "system": { "bsonType": ["string", "null"] }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "join": { "bsonType": "string" },
+                "leave": { "bsonType": "null" },
+                "system": { "bsonType": "null" }
+              },
+              "required": ["join"]
+            },
+            {
+              "properties": {
+                "join": { "bsonType": "null" },
+                "leave": { "bsonType": "string" },
+                "system": { "bsonType": "null" }
+              },
+              "required": ["leave"]
+            },
+            {
+              "properties": {
+                "join": { "bsonType": "null" },
+                "leave": { "bsonType": "null" },
+                "system": { "bsonType": "string" }
+              },
+              "required": ["system"]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "validationLevel": "strict",
+  "validationAction": "error"
+}

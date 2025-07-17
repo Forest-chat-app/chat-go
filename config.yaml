@@ -1,0 +1,87 @@
+server:
+  host: localhost
+  port: 8888
+
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: root
+  dbname: chat
+  charset: utf8mb4
+  max_lifetime: 300      # 连接的最大生命周期（秒），超过此时间连接会被关闭并重新创建
+  max_open_conns: 20    # 最大打开连接数（包括空闲和正在使用的）
+  max_idle_conns: 10     # 最大空闲连接数
+  conn_timeout: 5
+
+redis:
+  address: "localhost:6379"
+  username: "root"
+  password: "root"
+  db: 0
+  pool_size: 100         # 连接池大小（最大连接数）
+  min_idle_conns: 10     # 最小空闲连接数
+  pool_timeout: 5        # 获取连接的超时时间（秒）
+  idle_timeout: 300
+
+mongo:
+  uri: mongodb+srv://root:root@chat-mongo.rimufll.mongodb.net/?retryWrites=true&w=majority&appName=chat-mongo
+  dbname: chat
+  min_pool_size: 5       # 最小连接数
+  max_pool_size: 100     # 最大连接数
+  connect_timeout: 10    # 连接超时时间（秒）
+  max_conn_idle_time: 300 # 连接最大空闲时间（秒）
+
+elasticsearch:
+  address: https://localhost:9200
+  api_key: SndVaUY1Y0JNMVVNVmZZQ1JFd0s6WlYtZkNfS3dMc2hFbVBMZUJmUnhMdw== # 暂时不用
+  username: elastic
+  password: Tang29125.
+  insecure_skip_verify: false
+  ca_file: "schemas/elasticsearch/http_ca.crt"
+
+# 指定数据库配置
+db_schema:
+  mysql:
+    script_file: "schemas/mysql/chat.sql"
+
+  mongodb:
+    collections:
+      - name: user_messages
+        index_file: "schemas/mongo/user/user_messages_indexes.json"
+        validator_command_file: "schemas/mongo/user/user_messages_validator.json"
+      - name: system_messages
+        index_file: "schemas/mongo/system/system_messages_indexes.json"
+        validator_command_file: "schemas/mongo/system/system_messages_validator.json"
+
+  elasticsearch:
+    indices:
+      - name: user_messages
+        request_file: "schemas/elasticsearch/user/user_messages_index_create_request.json"
+      - name: system_messages
+        request_file: "schemas/elasticsearch/system/system_messages_index_create_request.json"
+
+# 这里配置哪几对数据库需要同步
+mongo_es_sync:
+  - mongo_collection: user_messages
+    es_index: user_messages
+  - mongo_collection: system_messages
+    es_index: system_messages
+
+logger:
+  level: info
+  output: stdout
+  format: json
+  source_path: true
+
+
+# JWT配置
+jwt:
+  secret: "chat"  # JWT密钥，生产环境请使用强密钥
+  access_time: 300 # 30分钟
+  refresh_time: 30 # 30天
+  user_tokens_time: 30 # 30天
+  issuer: "chat-server"           # 签发人
+
+
+

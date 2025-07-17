@@ -1,0 +1,154 @@
+{
+  "collMod": "user_messages",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["room_id", "sender_id", "type", "content", "created_at"],
+      "properties": {
+        "_id": {
+          "bsonType": ["objectId", "string"],
+          "description": "MongoDB will auto-generate if not provided. Must be ObjectId or string if present."
+        },
+        "room_id": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "sender_id": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "type": {
+          "bsonType": "string",
+          "description": "Must be a string and is required."
+        },
+        "created_at": {
+          "bsonType": ["long", "int"],
+          "description": "Must be a number (timestamp) and is required."
+        },
+        "content": {
+          "bsonType": "object",
+          "description": "Content object is required and must contain exactly one type of message data.",
+          "properties": {
+            "text": { "bsonType": ["string", "null"] },
+            "image": { "bsonType": ["object", "null"] },
+            "file": { "bsonType": ["object", "null"] },
+            "voice": { "bsonType": ["object", "null"] },
+            "video": { "bsonType": ["object", "null"] },
+            "reply": { "bsonType": ["object", "null"] }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "text": { "bsonType": "string" },
+                "image": { "bsonType": "null" },
+                "file": { "bsonType": "null" },
+                "voice": { "bsonType": "null" },
+                "video": { "bsonType": "null" },
+                "reply": { "bsonType": "null" }
+              },
+              "required": ["text"]
+            },
+            {
+              "properties": {
+                "text": { "bsonType": "null" },
+                "image": {
+                  "bsonType": "object",
+                  "required": ["url", "name", "size", "format"],
+                  "properties": {
+                    "url": { "bsonType": "string" },
+                    "name": { "bsonType": "string" },
+                    "size": { "bsonType": "int", "minimum": 0 }, 
+                    "format": { "bsonType": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["image"]
+            },
+            {
+              "properties": {
+                "text": { "bsonType": "null" },
+                "image": { "bsonType": "null" },
+                "file": {
+                  "bsonType": "object",
+                  "required": ["url", "name", "size", "format"],
+                  "properties": {
+                    "url": { "bsonType": "string" },
+                    "name": { "bsonType": "string" },
+                    "size": { "bsonType": "int", "minimum": 0 },
+                    "format": { "bsonType": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["file"]
+            },
+            {
+              "properties": {
+                "text": { "bsonType": "null" },
+                "image": { "bsonType": "null" },
+                "file": { "bsonType": "null" },
+                "voice": {
+                  "bsonType": "object",
+                  "required": ["url", "name", "size", "format", "duration"],
+                  "properties": {
+                    "url": { "bsonType": "string" },
+                    "name": { "bsonType": "string" },
+                    "size": { "bsonType": "int", "minimum": 0 },
+                    "format": { "bsonType": "string" },
+                    "duration": { "bsonType": "double", "minimum": 0 }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["voice"]
+            },
+            {
+              "properties": {
+                "text": { "bsonType": "null" },
+                "image": { "bsonType": "null" },
+                "file": { "bsonType": "null" },
+                "voice": { "bsonType": "null" },
+                "video": {
+                  "bsonType": "object",
+                  "required": ["url", "name", "size", "format", "duration"],
+                  "properties": {
+                    "url": { "bsonType": "string" },
+                    "name": { "bsonType": "string" },
+                    "size": { "bsonType": "int", "minimum": 0 },
+                    "format": { "bsonType": "string" },
+                    "duration": { "bsonType": "double", "minimum": 0 }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["video"]
+            },
+            {
+              "properties": {
+                "text": { "bsonType": "null" },
+                "image": { "bsonType": "null" },
+                "file": { "bsonType": "null" },
+                "voice": { "bsonType": "null" },
+                "video": { "bsonType": "null" },
+                "reply": {
+                  "bsonType": "object",
+                  "required": ["text", "reply_to"],
+                  "properties": {
+                    "text": { "bsonType": "string" },
+                    "reply_to": { "bsonType": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["reply"]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "validationLevel": "strict",
+  "validationAction": "error"
+}
