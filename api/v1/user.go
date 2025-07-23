@@ -1,10 +1,12 @@
 package v1
 
 import (
+	"chat-server/global"
 	"chat-server/model/common"
 	"chat-server/model/request/user"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 type UserApi struct{}
@@ -58,6 +60,23 @@ func (userApi *UserApi) Register(c *gin.Context) {
 		return
 	}
 
+	// 设置refresh_token为http only
+	refreshToken := tokenPair.RefreshToken
+	cookieName := "refresh_token"
+	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
+	// 设置 Cookie
+	c.SetCookie(
+		cookieName,   // Cookie 名称
+		refreshToken, // Cookie 值
+		maxAge,       // Cookie 的最大生命周期（秒）
+		"/",          // Cookie 路径，"/" 表示所有路径都可访问
+		"",           // Cookie 作用域，生产环境应替换为你的域名，例如 "api.yourdomain.com" 或 "yourdomain.com"
+		// 开发测试时可以用 "localhost" 或留空
+		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
+		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
+	)
+	tokenPair.RefreshToken = ""
+
 	common.Result(c, common.SUCCESS, tokenPair)
 }
 
@@ -88,6 +107,24 @@ func (userApi *UserApi) LoginAccount(c *gin.Context) {
 			return
 		}
 	}
+
+	// 设置refresh_token为http only
+	refreshToken := tokenPair.RefreshToken
+	cookieName := "refresh_token"
+	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
+	// 设置 Cookie
+	c.SetCookie(
+		cookieName,   // Cookie 名称
+		refreshToken, // Cookie 值
+		maxAge,       // Cookie 的最大生命周期（秒）
+		"/",          // Cookie 路径，"/" 表示所有路径都可访问
+		"",           // Cookie 作用域，生产环境应替换为你的域名，例如 "api.yourdomain.com" 或 "yourdomain.com"
+		// 开发测试时可以用 "localhost" 或留空
+		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
+		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
+	)
+
+	tokenPair.RefreshToken = ""
 
 	common.Result(c, common.SUCCESS, tokenPair)
 

@@ -30,7 +30,7 @@ type RefreshToken struct {
 // 不需要验证的路径
 var excludePaths = []string{
 	"/api/v1/user/register",
-	"/api/v1/user/login",
+	"/api/v1/user/loginAccount",
 	"/api/v1/user/test",
 	"/token/refreshToken",
 	"/swagger/",
