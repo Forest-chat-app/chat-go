@@ -5,6 +5,7 @@ import (
 	"chat-server/middleware"
 	"chat-server/model"
 	"chat-server/model/common"
+	"chat-server/model/request/user"
 	"chat-server/utils"
 	"context"
 	"encoding/json"
@@ -15,7 +16,7 @@ import (
 type UserService struct{}
 
 // RegisterUser 注册用户
-func (s *UserService) RegisterUser(userAccount, password, email, platform string) (*middleware.TokenPair, error) {
+func (s *UserService) RegisterUser(req user.RegisterRequest) (*middleware.TokenPair, error) {
 	tx := global.CHAT_MYSQL.Begin()
 
 	if tx.Error != nil {
@@ -31,12 +32,12 @@ func (s *UserService) RegisterUser(userAccount, password, email, platform string
 			tx.Rollback()
 		} else {
 			tx.Commit()
-			global.CHAT_LOG.Info(fmt.Sprintf("RegisterUser-->%s 成功", userAccount))
+			global.CHAT_LOG.Info(fmt.Sprintf("RegisterUser-->%s-->mysql无报错", req.UserAccount))
 		}
 	}()
 	// 检查用户名是否已存在
 	var count int64
-	err := tx.Model(&model.User{}).Where("user_account = ?", userAccount).Count(&count).Error
+	err := tx.Model(&model.User{}).Where("user_account = ?", req.UserAccount).Count(&count).Error
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->检查用户账号，数据库操作错误", "err", err)
@@ -47,33 +48,38 @@ func (s *UserService) RegisterUser(userAccount, password, email, platform string
 	}
 
 	// 判断密码是否合法
-	if len(password) <= 0 {
+	if len(req.Password) <= 0 {
 		return nil, common.NewServiceError(common.PASSWORD_INVALID)
 	}
-	hashedPassword, err := utils.GenerateFromPassword(password)
+	hashedPassword, err := utils.GenerateFromPassword(req.Password)
 	if err != nil || hashedPassword == "" {
 		global.CHAT_LOG.Error("RegisterUser-->加密密码出错", "err", err)
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
 	// 判断邮箱是否合法
-	if !utils.VerifyEmail(email) {
+	if len(req.Email) > 0 && !utils.VerifyEmail(req.Email) {
 		return nil, common.NewServiceError(common.EMAIL_INVALID)
+	}
+
+	// 判断头像url是否合法
+	if !utils.VerifyAvatar(req.Avatar) {
+		return nil, common.NewServiceError(common.AVATAR_INVALID)
 	}
 
 	// 创建新用户
 	userID := uuid.New().String()
-	user := model.User{
+	createUser := model.User{
 		ID:          userID,
-		UserAccount: userAccount,
+		UserAccount: req.UserAccount,
 		Password:    hashedPassword,
-		Nickname:    userAccount,
-		Email:       email,
-		Avatar:      "",
+		Nickname:    req.UserAccount,
+		Email:       req.Email,
+		Avatar:      req.Avatar,
 		CreatedAt:   utils.GetUTCMillisTimestamp(),
 		UpdatedAt:   utils.GetUTCMillisTimestamp(),
 	}
-	err = tx.Create(&user).Error
+	err = tx.Create(&createUser).Error
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->创建用户，数据库操作错误", "err", err)
@@ -81,7 +87,7 @@ func (s *UserService) RegisterUser(userAccount, password, email, platform string
 	}
 
 	// 创建用户成功, 生成token
-	tokenPair, err := utils.GenerateTokenPair(userID, userAccount)
+	tokenPair, err := utils.GenerateTokenPair(userID, req.UserAccount)
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->生成token失败", "err", err)
@@ -89,7 +95,7 @@ func (s *UserService) RegisterUser(userAccount, password, email, platform string
 	}
 	// 在redis保存RefreshToken状态
 	tokenId := uuid.New().String()
-	err = utils.StoreRefreshToken(userID, tokenId, platform)
+	err = utils.StoreRefreshToken(userID, tokenId, req.Platform)
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->保存RefreshToken状态失败", "err", err)
@@ -99,6 +105,7 @@ func (s *UserService) RegisterUser(userAccount, password, email, platform string
 	return tokenPair, nil
 }
 
+// LoginAccount 账号登录
 func (s *UserService) LoginAccount(userAccount string, password string, platform string) (*middleware.TokenPair, error) {
 	tx := global.CHAT_MYSQL.Begin()
 	redis := global.CHAT_REDIS

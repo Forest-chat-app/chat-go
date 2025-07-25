@@ -8,3 +8,8 @@ import (
 func VerifyEmail(email string) bool {
 	return regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`).MatchString(email)
 }
+
+// VerifyAvatar 验证头像url格式
+func VerifyAvatar(avatar string) bool {
+	return regexp.MustCompile(`^https?:\/\/[^\s]+$`).MatchString(avatar)
+}

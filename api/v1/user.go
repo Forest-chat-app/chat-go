@@ -51,7 +51,7 @@ func (userApi *UserApi) Register(c *gin.Context) {
 	}
 
 	//处理注册业务
-	tokenPair, err := userService.RegisterUser(req.UserAccount, req.Password, req.Email, req.Platform)
+	tokenPair, err := userService.RegisterUser(req)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
