@@ -7,4 +7,5 @@ type ServiceGroup struct {
 	UserService
 	MongoToEsSync
 	TokenService
+	RoomService
 }

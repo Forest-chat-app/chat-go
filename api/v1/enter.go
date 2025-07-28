@@ -8,11 +8,12 @@ type ApiGroup struct {
 	UserApi
 	ChatApi
 	TokenApi
+	RoomApi
 }
 
 var (
-	chatService   = service.ServiceGroupApp.ChatService
-	userService   = service.ServiceGroupApp.UserService
-	mongoToEsSync = service.ServiceGroupApp.MongoToEsSync
-	tokenService  = service.ServiceGroupApp.TokenService
+	chatService  = service.ServiceGroupApp.ChatService
+	userService  = service.ServiceGroupApp.UserService
+	tokenService = service.ServiceGroupApp.TokenService
+	roomService  = service.ServiceGroupApp.RoomService
 )
