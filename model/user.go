@@ -1,12 +1,12 @@
 package model
 
 type User struct {
-	ID          string `gorm:"primaryKey;type:varchar(255)"`
-	UserAccount string `gorm:"unique;type:varchar(255);not null"`
-	Password    string `gorm:"type:varchar(255);not null"`
-	Nickname    string `gorm:"type:varchar(255);"`
-	Email       string `gorm:"type:varchar(255);"`
-	Avatar      string `gorm:"type:varchar(255);"`
-	CreatedAt   int64  `gorm:"not null"`
-	UpdatedAt   int64  `gorm:"not null"`
+	ID          string `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	UserAccount string `gorm:"unique;type:varchar(255);not null" json:"user_account"`
+	Password    string `gorm:"type:varchar(255);not null" json:"-"`
+	Nickname    string `gorm:"type:varchar(255)" json:"nickname"`
+	Email       string `gorm:"type:varchar(255)" json:"email"`
+	Avatar      string `gorm:"type:varchar(255)" json:"avatar"`
+	CreatedAt   int64  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   int64  `gorm:"autoUpdateTime" json:"updated_at"`
 }

@@ -2,6 +2,7 @@
 CREATE DATABASE IF NOT EXISTS `chat`;
 USE `chat`;
 
+-- DROP TABLE IF EXISTS `user`;
 CREATE TABLE IF NOT EXISTS `user` (
     `id` VARCHAR(255) NOT NULL COMMENT '用户ID',
     `user_account` VARCHAR(255) NOT NULL UNIQUE, -- user_account 通常是唯一的
@@ -15,19 +16,21 @@ CREATE TABLE IF NOT EXISTS `user` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- DROP TABLE IF EXISTS `room`;
 CREATE TABLE IF NOT EXISTS `room` (
-    `id` VARCHAR(255) NOT NULL COMMENT '房间ID',
-    `room_name` VARCHAR(255) NOT NULL,
-    `creator_id` VARCHAR(255) NOT NULL,
-    `is_private` TINYINT(1) NOT NULL COMMENT '是否私有，0为否，1为是', -- JSON 类型在 MySQL 中通常用于存储复杂结构，对于布尔值建议使用 TINYINT(1)
-    `is_delete` TINYINT(1) NOT NULL COMMENT '是否删除，0为否，1为是', -- 同上
-    `created_at` BIGINT NOT NULL COMMENT '创建时间戳 (毫秒)', -- INTEGER 类型通常是秒，这里改为 BIGINT 假设是毫秒
-    `updated_at` BIGINT NOT NULL COMMENT '更新时间戳 (毫秒)', -- 同上
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`creator_id`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ `id` VARCHAR(255) NOT NULL COMMENT 'ID 编号',
+ `creator_id` VARCHAR(255) NOT NULL COMMENT '创建人id',
+ `room_name` VARCHAR(255) NOT NULL COMMENT '聊天室名称',
+ `introduction` VARCHAR(255) NOT NULL COMMENT '房间简介',
+ `tag` VARCHAR(255) NOT NULL COMMENT '标签，以#号隔开',
+ `status` TINYINT NOT NULL COMMENT '1、公开 2、私密 3、已删除',
+ `created_at` BIGINT NOT NULL COMMENT '创建时间 毫秒',
+ `updated_at` BIGINT NOT NULL COMMENT '更新时间 毫秒',
+ PRIMARY KEY (`id`),
+ FOREIGN KEY (`creator_id`) REFERENCES `user`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
+-- DROP TABLE IF EXISTS `room_members`;
 CREATE TABLE IF NOT EXISTS `room_members` (
     `id` VARCHAR(255) NOT NULL COMMENT 'ID 编号',
     `user_id` VARCHAR(255) NOT NULL,

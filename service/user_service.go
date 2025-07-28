@@ -2,7 +2,6 @@ package service
 
 import (
 	"chat-server/global"
-	"chat-server/middleware"
 	"chat-server/model"
 	"chat-server/model/common"
 	"chat-server/model/request/user"
@@ -16,7 +15,7 @@ import (
 type UserService struct{}
 
 // RegisterUser 注册用户
-func (s *UserService) RegisterUser(req user.RegisterRequest) (*middleware.TokenPair, error) {
+func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interface{}, error) {
 	tx := global.CHAT_MYSQL.Begin()
 
 	if tx.Error != nil {
@@ -102,11 +101,19 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (*middleware.TokenP
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
-	return tokenPair, nil
+	// 处理返回数据
+	data := map[string]interface{}{
+		"user":          createUser,
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn,
+	}
+
+	return data, nil
 }
 
 // LoginAccount 账号登录
-func (s *UserService) LoginAccount(userAccount string, password string, platform string) (*middleware.TokenPair, error) {
+func (s *UserService) LoginAccount(req user.LoginRequest) (map[string]interface{}, error) {
 	tx := global.CHAT_MYSQL.Begin()
 	redis := global.CHAT_REDIS
 	ctx := context.Background()
@@ -125,20 +132,20 @@ func (s *UserService) LoginAccount(userAccount string, password string, platform
 			tx.Rollback()
 		} else {
 			tx.Commit()
-			global.CHAT_LOG.Info(fmt.Sprintf("LoginAccount-->%s 成功", userAccount))
+			global.CHAT_LOG.Info(fmt.Sprintf("LoginAccount-->%s-->mysql无报错", req.UserAccount))
 		}
 	}()
 
 	// 验证userAccount
 	var queryUser model.User
-	err := tx.Where("user_account = ?", userAccount).First(&queryUser).Error
+	err := tx.Where("user_account = ?", req.UserAccount).First(&queryUser).Error
 	if err != nil {
 		global.CHAT_LOG.Error("LoginAccount-->检查用户账号，数据库操作错误", "err", err)
 		return nil, common.NewServiceError(common.USER_ACCOUNT_NOT_FOUND)
 	}
 
 	// 验证密码
-	match, err := utils.CompareHashAndPassword(queryUser.Password, password)
+	match, err := utils.CompareHashAndPassword(queryUser.Password, req.Password)
 	if err != nil {
 		return nil, common.NewServiceError(common.ERROR)
 	}
@@ -174,7 +181,7 @@ func (s *UserService) LoginAccount(userAccount string, password string, platform
 				global.CHAT_LOG.Error("LoginAccount-->获取platform失败", "err", err)
 				return nil, common.NewServiceError(common.ERROR)
 			}
-			if getPlatform == platform {
+			if getPlatform == req.Platform {
 				err := utils.RevokeToken(queryUser.ID, tokenId)
 				if err != nil {
 					global.CHAT_LOG.Error("LoginAccount-->撤销旧令牌RevokeToken失败", "err", err)
@@ -193,11 +200,19 @@ func (s *UserService) LoginAccount(userAccount string, password string, platform
 
 	// 在redis保存RefreshToken状态
 	tokenId := uuid.New().String()
-	err = utils.StoreRefreshToken(queryUser.ID, tokenId, platform)
+	err = utils.StoreRefreshToken(queryUser.ID, tokenId, req.Platform)
 	if err != nil {
 		global.CHAT_LOG.Error("LoginAccount-->保存RefreshToken状态失败", "err", err)
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
-	return tokenPair, nil
+	// 处理返回数据
+	data := map[string]interface{}{
+		"user":          queryUser,
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn,
+	}
+
+	return data, nil
 }

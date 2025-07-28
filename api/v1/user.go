@@ -51,7 +51,7 @@ func (userApi *UserApi) Register(c *gin.Context) {
 	}
 
 	//处理注册业务
-	tokenPair, err := userService.RegisterUser(req)
+	data, err := userService.RegisterUser(req)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
@@ -61,7 +61,7 @@ func (userApi *UserApi) Register(c *gin.Context) {
 	}
 
 	// 设置refresh_token为http only
-	refreshToken := tokenPair.RefreshToken
+	refreshToken := data["refresh_token"].(string)
 	cookieName := "refresh_token"
 	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
 	// 设置 Cookie
@@ -75,9 +75,9 @@ func (userApi *UserApi) Register(c *gin.Context) {
 		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
 		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
 	)
-	tokenPair.RefreshToken = ""
+	data["refresh_token"] = ""
 
-	common.Result(c, common.SUCCESS, tokenPair)
+	common.Result(c, common.SUCCESS, data)
 }
 
 // LoginAccount Login godoc
@@ -99,7 +99,7 @@ func (userApi *UserApi) LoginAccount(c *gin.Context) {
 	}
 
 	// 处理登录业务
-	tokenPair, err := userService.LoginAccount(req.UserAccount, req.Password, req.Platform)
+	data, err := userService.LoginAccount(req)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
@@ -109,7 +109,7 @@ func (userApi *UserApi) LoginAccount(c *gin.Context) {
 	}
 
 	// 设置refresh_token为http only
-	refreshToken := tokenPair.RefreshToken
+	refreshToken := data["refresh_token"].(string)
 	cookieName := "refresh_token"
 	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
 	// 设置 Cookie
@@ -123,9 +123,8 @@ func (userApi *UserApi) LoginAccount(c *gin.Context) {
 		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
 		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
 	)
+	data["refresh_token"] = ""
 
-	tokenPair.RefreshToken = ""
-
-	common.Result(c, common.SUCCESS, tokenPair)
+	common.Result(c, common.SUCCESS, data)
 
 }
