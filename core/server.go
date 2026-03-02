@@ -33,11 +33,11 @@ func RunServe(appCtx context.Context, appCancel context.CancelFunc, wg *sync.Wai
 				appCancel()
 			}
 		}()
-		global.CHAT_LOG.Info("HTTP服务器启动", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			global.CHAT_LOG.Error("HTTP服务器启动失败", "err", err)
 			appCancel() // 通知其他goroutine关闭
 		}
+		global.CHAT_LOG.Info("HTTP服务器启动", "addr", srv.Addr)
 	}()
 
 	// 阻塞主 Goroutine，等待中断信号

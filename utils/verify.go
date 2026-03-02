@@ -13,3 +13,8 @@ func VerifyEmail(email string) bool {
 func VerifyAvatar(avatar string) bool {
 	return regexp.MustCompile(`^https?:\/\/[^\s]+$`).MatchString(avatar)
 }
+
+// VerifyString 验证字符串是否非空
+func VerifyString(str string) bool {
+	return str != ""
+}

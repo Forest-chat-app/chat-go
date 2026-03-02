@@ -1,6 +1,6 @@
 package room
 
-type CreateRoom struct {
+type CreateRoomRequest struct {
 	RoomName     string `json:"room_name" binding:"required"`
 	Introduction string `json:"introduction" binding:"required"`
 	Tag          string `json:"tag" binding:"required"`
