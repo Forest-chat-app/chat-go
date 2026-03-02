@@ -29,4 +29,6 @@ func InitRouter() {
 	// 初始化各个模块的路由
 	router.RouterGroupApp.UserRouter.InitUserRouter(apiV1)
 	router.RouterGroupApp.ChatRouter.InitChatRouter(apiV1)
+	router.RouterGroupApp.RoomRouter.InitRoomRouter(apiV1)
+
 }

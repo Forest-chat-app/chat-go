@@ -1,10 +1,10 @@
 package v1
 
 import (
+	"chat-server/core"
 	"chat-server/global"
 	"chat-server/middleware"
 	"chat-server/model/common"
-	"chat-server/service"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"time"
@@ -21,8 +21,8 @@ type ChatApi struct{}
 // @Param room_id query string true "房间ID"
 // @Security BearerAuth
 // @Success 101 {string} string "Switching Protocols to WebSocket"
-// @Router /api/v1/chat/ws [get]
-func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
+// @Router /api/v1/chat/webSocketHandler [get]
+func (chatApi *ChatApi) ChatConn(c *gin.Context) {
 	// 获取要连接的房间id
 	roomId := c.Query("room_id")
 	if roomId == "" {
@@ -45,19 +45,17 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 	}
 	global.CHAT_LOG.Info("WebSocketHandler 升级websocket连接成功")
 	// 创建客户端
-	client := &service.Client{
+	client := &core.Client{
 		Conn:     conn,
 		UserId:   userId,
 		RoomId:   roomId,
-		Send:     make(chan *service.WebSocketMessage, 256),
+		Send:     make(chan *common.WebSocketMessage, 256),
 		LastPing: time.Now(),
-		Manager:  global.CHAT_WEBSOCKET_MANAGER.(*service.WebSocketManager),
+		Manager:  global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager),
 	}
 	// 注册客户端
 	client.Manager.Register <- client
 	// 启动读取协程
 	go client.ReadPump()
 	go client.WritePump()
-
-	//common.Result(c, common.SUCCESS, userId)
 }

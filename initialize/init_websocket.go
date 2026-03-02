@@ -1,8 +1,8 @@
 package initialize
 
 import (
+	"chat-server/core"
 	"chat-server/global"
-	"chat-server/service"
 	"context"
 	"github.com/gorilla/websocket"
 	"net/http"
@@ -20,7 +20,7 @@ func StartWebSocketManager(ctx context.Context) {
 		},
 	}
 	// 定义全局WebSocketManager
-	global.CHAT_WEBSOCKET_MANAGER = service.NewWebSocketManager()
+	global.CHAT_WEBSOCKET_MANAGER = core.NewWebSocketManager()
 	// 启动WebSocket管理器
-	go global.CHAT_WEBSOCKET_MANAGER.(*service.WebSocketManager).Run(ctx)
+	go global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).Run(ctx)
 }

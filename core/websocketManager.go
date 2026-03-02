@@ -1,9 +1,10 @@
-package service
+package core
 
 import (
 	"chat-server/constant"
 	"chat-server/global"
 	"chat-server/model"
+	"chat-server/model/common"
 	"chat-server/utils"
 	"context"
 	"encoding/json"
@@ -15,21 +16,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// WebSocket消息结构
-type WebSocketMessage struct {
-	Type      string      `json:"type"`
-	RoomId    string      `json:"room_id"`
-	SenderId  string      `json:"sender_id"`
-	Content   interface{} `json:"content"`
-	CreatedAt int64       `json:"created_at"`
-}
-
 // 客户端
 type Client struct {
 	Conn     *websocket.Conn
 	UserId   string
 	RoomId   string
-	Send     chan *WebSocketMessage
+	Send     chan *common.WebSocketMessage
 	LastPing time.Time
 	Manager  *WebSocketManager
 	mu       sync.Mutex
@@ -39,7 +31,7 @@ type Client struct {
 type WebSocketManager struct {
 	Rooms      map[string]map[*Client]bool
 	Clients    map[string][]*Client // 按用户ID组织的客户端映射（一个用户可能有多个连接，多平台）
-	Broadcast  chan *WebSocketMessage
+	Broadcast  chan *common.WebSocketMessage
 	Register   chan *Client
 	Unregister chan *Client
 	mu         sync.Mutex
@@ -50,12 +42,11 @@ func NewWebSocketManager() *WebSocketManager {
 	return &WebSocketManager{
 		Rooms:      make(map[string]map[*Client]bool),
 		Clients:    make(map[string][]*Client),
-		Broadcast:  make(chan *WebSocketMessage),
+		Broadcast:  make(chan *common.WebSocketMessage),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 	}
 }
-
 func (manager *WebSocketManager) Run(ctx context.Context) {
 	for {
 		select {
@@ -77,7 +68,7 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 			manager.mu.Unlock()
 
 			// 发送加入消息
-			joinMsg := &WebSocketMessage{
+			joinMsg := &common.WebSocketMessage{
 				Type:      constant.MessageTypeJoin,
 				RoomId:    client.RoomId,
 				SenderId:  client.UserId,
@@ -112,10 +103,6 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 				if _, clientExist := manager.Rooms[client.RoomId][client]; clientExist {
 					delete(manager.Rooms[client.RoomId], client)
 					close(client.Send)
-					// 房间没人则删除房间
-					if len(manager.Rooms[client.RoomId]) == 0 {
-						delete(manager.Rooms, client.RoomId)
-					}
 				}
 			}
 
@@ -138,16 +125,6 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 				}
 			}
 			manager.mu.Unlock()
-
-			// 发送离线消息
-			leaveMsg := &WebSocketMessage{
-				Type:      constant.MessageTypeLeave,
-				RoomId:    client.RoomId,
-				SenderId:  client.UserId,
-				Content:   map[string]interface{}{constant.MessageTypeLeave: constant.LeaveMessageContent, constant.MessageTypeJoin: nil, constant.MessageTypeSystem: nil},
-				CreatedAt: utils.GetUTCMillisTimestamp(),
-			}
-			manager.BroadcastToRoom(client.RoomId, leaveMsg)
 		// 广播消息
 		case message := <-manager.Broadcast:
 			manager.BroadcastToRoom(message.RoomId, message)
@@ -155,7 +132,7 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 	}
 }
 
-func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *WebSocketMessage) {
+func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.WebSocketMessage) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 
@@ -173,7 +150,7 @@ func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *WebSock
 
 	// 保存用户消息到mongoDB
 	if constant.UserMessageType[message.Type] {
-		go func(message *WebSocketMessage) {
+		go func(message *common.WebSocketMessage) {
 			// 验证消息内容
 			content, isValid := validateUserMessage(message)
 			if !isValid {
@@ -196,7 +173,7 @@ func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *WebSock
 	}
 	// 保存系统消息到mongoDB
 	if constant.SystemMessageType[message.Type] {
-		go func(message *WebSocketMessage) {
+		go func(message *common.WebSocketMessage) {
 			// 验证消息内容
 			content, isValid := validateSystemMessage(message)
 			if !isValid {
@@ -229,14 +206,14 @@ func (client *Client) ReadPump() {
 	}()
 
 	// 设置读取时长和心跳
-	client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-	client.Conn.SetPongHandler(func(string) error {
-		client.mu.Lock()
-		client.LastPing = time.Now()
-		client.mu.Unlock()
-		client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-		return nil
-	})
+	//client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
+	//client.Conn.SetPongHandler(func(string) error {
+	//	client.mu.Lock()
+	//	client.LastPing = time.Now()
+	//	client.mu.Unlock()
+	//	client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
+	//	return nil
+	//})
 
 	// 读取消息
 	for {
@@ -249,12 +226,12 @@ func (client *Client) ReadPump() {
 			break
 		}
 		// 接收json格式的message，解析成WebSocketMessage类型。
-		var wsMessage WebSocketMessage
+		var wsMessage common.WebSocketMessage
 		if err := json.Unmarshal(message, &wsMessage); err != nil {
 			global.CHAT_LOG.Error("WebSocket解析消息错误", "err", err, "message", message)
 			// 解析错误则默认当作文本处理
 			wsMessage.Type = constant.MessageTypeText
-			wsMessage.Content = map[string]interface{}{"text": string(message)}
+			wsMessage.Content = map[string]interface{}{"text": "解析错误"}
 		}
 		// 解析后json后，设置基本信息
 		wsMessage.RoomId = client.RoomId
@@ -319,7 +296,7 @@ func (client *Client) WritePump() {
 	}
 }
 
-func validateUserMessage(message *WebSocketMessage) (model.UserMessageContent, bool) {
+func validateUserMessage(message *common.WebSocketMessage) (model.UserMessageContent, bool) {
 	// 验证id
 	if message.RoomId == "" {
 		global.CHAT_LOG.Error("WebSocket validateUserMessage----->消息id不能为空", "message", message)
@@ -592,7 +569,7 @@ func validateUserContent(content model.UserMessageContent, contentType string) b
 	return true
 }
 
-func validateSystemMessage(message *WebSocketMessage) (model.SystemMessageContent, bool) {
+func validateSystemMessage(message *common.WebSocketMessage) (model.SystemMessageContent, bool) {
 	// 验证id
 	if message.RoomId == "" {
 		global.CHAT_LOG.Error("WebSocket validateSystemMessage----->消息id不能为空", "message", message)

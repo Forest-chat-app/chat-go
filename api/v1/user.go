@@ -88,7 +88,7 @@ func (userApi *UserApi) Register(c *gin.Context) {
 // @Produce      json
 // @Param        request  body      request.LoginRequest  true  "用户登录信息"
 // @Success      200      {object}  common.Response
-// @Router       /api/v1/user/login [post]
+// @Router       /api/v1/user/loginAccount [post]
 func (userApi *UserApi) LoginAccount(c *gin.Context) {
 	var req user.LoginRequest
 
