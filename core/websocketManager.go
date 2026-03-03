@@ -5,10 +5,10 @@ import (
 	"chat-server/global"
 	"chat-server/model"
 	"chat-server/model/common"
+	"chat-server/model/mysql"
 	"chat-server/utils"
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -20,7 +20,6 @@ import (
 type Client struct {
 	Conn     *websocket.Conn
 	UserId   string
-	RoomId   string
 	Send     chan *common.WebSocketMessage
 	LastPing time.Time
 	Manager  *WebSocketManager
@@ -54,77 +53,12 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 		case <-ctx.Done():
 			global.CHAT_LOG.Info("WebSocket管理器收到关闭信号，正在关闭...")
 			return
-		// 注册用户
+		// 用户上线
 		case client := <-manager.Register:
-			manager.mu.Lock()
-			// 判断房间是否存在
-			if _, ok := manager.Rooms[client.RoomId]; !ok {
-				manager.Rooms[client.RoomId] = make(map[*Client]bool)
-			}
-			// 添加客户端
-			manager.Rooms[client.RoomId][client] = true
-			// 将客户端添加到用户映射
-			manager.Clients[client.UserId] = append(manager.Clients[client.UserId], client)
-			manager.mu.Unlock()
-
-			// 发送加入消息
-			joinMsg := &common.WebSocketMessage{
-				Type:      constant.MessageTypeJoin,
-				RoomId:    client.RoomId,
-				SenderId:  client.UserId,
-				Content:   map[string]interface{}{constant.MessageTypeJoin: constant.JoinMessageContent, constant.MessageTypeLeave: nil, constant.MessageTypeSystem: nil},
-				CreatedAt: utils.GetUTCMillisTimestamp(),
-			}
-			manager.BroadcastToRoom(client.RoomId, joinMsg)
-
-			// 将用户加入到redis
-			pipeline := global.CHAT_REDIS.TxPipeline()
-			ctx := context.Background()
-			cacheKey := fmt.Sprintf("online_users:%s", client.RoomId)
-			addCmd := pipeline.SAdd(ctx, cacheKey, client.UserId)
-			expireCmd := pipeline.Expire(ctx, cacheKey, constant.OnlineUserExpire)
-			if _, err := pipeline.Exec(ctx); err != nil {
-				global.CHAT_LOG.Error("WebSocket Run----->添加在线用户失败", "err", err.Error())
-				return
-			}
-			if err := addCmd.Err(); err != nil {
-				global.CHAT_LOG.Error("WebSocket Run----->添加在线用户失败", "err", err.Error())
-				return
-			}
-			if err := expireCmd.Err(); err != nil {
-				global.CHAT_LOG.Error("WebSocket Run----->添加在线用户过期时间失败", "err", err.Error())
-				return
-			}
-		// 注销用户
+			manager.UserLogin(client)
+		// 用户下线
 		case client := <-manager.Unregister:
-			manager.mu.Lock()
-			// 从房间中移除客户端
-			if _, roomExist := manager.Rooms[client.RoomId]; roomExist {
-				if _, clientExist := manager.Rooms[client.RoomId][client]; clientExist {
-					delete(manager.Rooms[client.RoomId], client)
-					close(client.Send)
-				}
-			}
-
-			// 从用户映射中移除客户端
-			if clients, exists := manager.Clients[client.UserId]; exists {
-				var newClients []*Client
-				for _, c := range clients {
-					if c != client {
-						newClients = append(newClients, c)
-					}
-				}
-				// 客户端全部离线
-				if len(newClients) == 0 {
-					delete(manager.Clients, client.UserId)
-					// 从redis中移除用户
-					cacheKey := fmt.Sprintf("online_users:%s", client.RoomId)
-					global.CHAT_REDIS.SRem(context.Background(), cacheKey, client.UserId)
-				} else {
-					manager.Clients[client.UserId] = newClients
-				}
-			}
-			manager.mu.Unlock()
+			manager.UserLogout(client)
 		// 广播消息
 		case message := <-manager.Broadcast:
 			manager.BroadcastToRoom(message.RoomId, message)
@@ -132,6 +66,49 @@ func (manager *WebSocketManager) Run(ctx context.Context) {
 	}
 }
 
+// UserLogin 用户上线
+func (manager *WebSocketManager) UserLogin(client *Client) {
+	// 1、获取数据库连接
+	tx := global.CHAT_MYSQL
+
+	// 2、查询用户所有roomId
+	var roomIds []string
+	tx.Model(&mysql.RoomMembers{}).Where("user_id = ?", client.UserId).Pluck("room_id", &roomIds)
+	if len(roomIds) == 0 {
+		return
+	}
+
+	// 3、将用户连接加入到各房间
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	for _, roomId := range roomIds {
+		// 3.1 判断房间是否存在，不存在则创建房间
+		if _, ok := manager.Rooms[roomId]; !ok {
+			manager.Rooms[roomId] = make(map[*Client]bool)
+		}
+		// 3.2 添加客户端到该房间
+		manager.Rooms[roomId][client] = true
+	}
+	// 3.3 保存客户端
+	manager.Clients[client.UserId] = append(manager.Clients[client.UserId], client)
+}
+
+// UserLogout 用户下线
+func (manager *WebSocketManager) UserLogout(client *Client) {
+	// 1、从房间中移除客户端
+	manager.mu.Lock()
+	// 1.1 从房间移除客户端连接
+	for roomId, clients := range manager.Rooms {
+		if _, exist := clients[client]; exist {
+			delete(manager.Rooms[roomId], client)
+		}
+	}
+	// 1.2 从客户端集合移除客户端
+	delete(manager.Clients, client.UserId)
+	manager.mu.Unlock()
+}
+
+// BroadcastToRoom 推送消息
 func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.WebSocketMessage) {
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -197,6 +174,7 @@ func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.
 
 }
 
+// ReadPump 客户端读取消息
 func (client *Client) ReadPump() {
 	global.CHAT_LOG.Info("ReadPump 开始读取消息")
 	defer func() {
@@ -204,16 +182,6 @@ func (client *Client) ReadPump() {
 		client.Conn.Close()
 		global.CHAT_LOG.Info("ReadPump 读取消息结束")
 	}()
-
-	// 设置读取时长和心跳
-	//client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-	//client.Conn.SetPongHandler(func(string) error {
-	//	client.mu.Lock()
-	//	client.LastPing = time.Now()
-	//	client.mu.Unlock()
-	//	client.Conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-	//	return nil
-	//})
 
 	// 读取消息
 	for {
@@ -234,7 +202,6 @@ func (client *Client) ReadPump() {
 			wsMessage.Content = map[string]interface{}{"text": "解析错误"}
 		}
 		// 解析后json后，设置基本信息
-		wsMessage.RoomId = client.RoomId
 		wsMessage.SenderId = client.UserId
 		wsMessage.CreatedAt = utils.GetUTCMillisTimestamp()
 		// 发送消息
@@ -242,6 +209,7 @@ func (client *Client) ReadPump() {
 	}
 }
 
+// WritePump 客户端发送消息
 func (client *Client) WritePump() {
 	// 设置心跳定时器
 	ticker := time.NewTicker(30 * time.Second)
@@ -296,10 +264,11 @@ func (client *Client) WritePump() {
 	}
 }
 
+// 校验用户信息
 func validateUserMessage(message *common.WebSocketMessage) (model.UserMessageContent, bool) {
 	// 验证id
 	if message.RoomId == "" {
-		global.CHAT_LOG.Error("WebSocket validateUserMessage----->消息id不能为空", "message", message)
+		global.CHAT_LOG.Error("WebSocket validateUserMessage----->消息房间id不能为空", "message", message)
 		return model.UserMessageContent{}, false
 	}
 	if message.SenderId == "" {
@@ -569,6 +538,7 @@ func validateUserContent(content model.UserMessageContent, contentType string) b
 	return true
 }
 
+// 校验系统信息
 func validateSystemMessage(message *common.WebSocketMessage) (model.SystemMessageContent, bool) {
 	// 验证id
 	if message.RoomId == "" {

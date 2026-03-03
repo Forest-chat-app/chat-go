@@ -1,4 +1,4 @@
-package model
+package mysql
 
 type User struct {
 	ID          string `gorm:"primaryKey;type:varchar(255)" json:"id"`

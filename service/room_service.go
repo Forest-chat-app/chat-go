@@ -45,7 +45,7 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	}()
 
 	// 3、创建聊天室
-	createRoom := model.Room{
+	createRoom := mysql.Room{
 		ID:           utils.GenerateUUid(),
 		CreatorID:    userId,
 		RoomName:     req.RoomName,
@@ -63,12 +63,12 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	}
 
 	// 4、加入聊天室
-	var queryRole model.Role
+	var queryRole mysql.Role
 	tx.First(&queryRole, "role_id = ?", constant.RoleGroupOwner)
 	if queryRole.ID == "" {
 		return nil, common.NewServiceError(common.ROLE_NOT_FOUND)
 	}
-	var joinRoom = model.RoomMembers{
+	var joinRoom = mysql.RoomMembers{
 		ID:         utils.GenerateUUid(),
 		UserID:     userId,
 		RoomID:     createRoom.ID,
@@ -112,7 +112,7 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 	}()
 
 	// 3、搜索聊天室
-	var rooms []model.Room
+	var rooms []mysql.Room
 	switch req.Type {
 	case 1:
 		tx.Where("room_name LIKE ?", "%"+req.Content+"%").Find(&rooms)
@@ -160,20 +160,36 @@ func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[str
 	}()
 
 	// 3、查询房间是否存在
-	var queryRoom model.Room
+	var queryRoom mysql.Room
 	tx.First(&queryRoom, "id = ?", req.RoomId)
 	if queryRoom.ID == "" {
 		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
 	}
 
 	// 4、加入房间
-	var joinRoom = model.RoomMembers{
+	var queryRole mysql.Role
+	tx.First(&queryRole, "role_id = ?", constant.RoleGroupMember)
+	if queryRole.ID == "" {
+		return nil, common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+	var joinRoom = mysql.RoomMembers{
 		ID:         utils.GenerateUUid(),
 		UserID:     userId,
 		RoomID:     req.RoomId,
 		JoinedAt:   utils.GetUTCMillisTimestamp(),
-		LastReadId: req.RoomId,
+		LastReadId: "",
+		UserRole:   queryRole.ID,
 	}
 	tx.Create(&joinRoom)
+
+	// 5、发送加入消息
+	//joinMsg := &common.WebSocketMessage{
+	//	Type:      constant.MessageTypeJoin,
+	//	RoomId:    client.RoomId,
+	//	SenderId:  client.UserId,
+	//	Content:   map[string]interface{}{constant.MessageTypeJoin: constant.JoinMessageContent, constant.MessageTypeLeave: nil, constant.MessageTypeSystem: nil},
+	//	CreatedAt: utils.GetUTCMillisTimestamp(),
+	//}
+	//manager.BroadcastToRoom(client.RoomId, joinMsg)
 	return nil, nil
 }

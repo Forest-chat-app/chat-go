@@ -135,12 +135,12 @@ func IsTokenRevoked(userID string, tokenID string) (bool, error) {
 }
 
 // GetUserByID 根据ID获取用户
-func GetUserByID(userID string) (*model.User, error) {
-	mysql := global.CHAT_MYSQL
+func GetUserByID(userID string) (*mysql.User, error) {
+	tx := global.CHAT_MYSQL
 
 	// 实现用户查询逻辑
-	queryUser := model.User{}
-	err := mysql.Where("id = ?", userID).First(&queryUser).Error
+	queryUser := mysql.User{}
+	err := tx.Where("id = ?", userID).First(&queryUser).Error
 	if err != nil {
 		return nil, common.NewServiceError(common.USER_ID_NOT_FOUND)
 	}

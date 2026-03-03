@@ -1,4 +1,4 @@
-package model
+package mysql
 
 type Room struct {
 	ID           string `gorm:"primaryKey;type:varchar(255)"`

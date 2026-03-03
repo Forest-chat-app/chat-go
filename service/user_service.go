@@ -3,8 +3,8 @@ package service
 import (
 	"chat-server/global"
 	"chat-server/model/common"
-	"chat-server/model/request/user"
 	"chat-server/model/mysql"
+	"chat-server/model/request/user"
 	"chat-server/utils"
 	"context"
 	"encoding/json"
@@ -36,7 +36,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interfa
 	}()
 	// 检查用户名是否已存在
 	var count int64
-	err := tx.Model(&model.User{}).Where("user_account = ?", req.UserAccount).Count(&count).Error
+	err := tx.Model(&mysql.User{}).Where("user_account = ?", req.UserAccount).Count(&count).Error
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->检查用户账号，数据库操作错误", "err", err)
@@ -68,7 +68,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interfa
 
 	// 创建新用户
 	userID := uuid.New().String()
-	createUser := model.User{
+	createUser := mysql.User{
 		ID:          userID,
 		UserAccount: req.UserAccount,
 		Password:    hashedPassword,
@@ -137,7 +137,7 @@ func (s *UserService) LoginAccount(req user.LoginRequest) (map[string]interface{
 	}()
 
 	// 验证userAccount
-	var queryUser model.User
+	var queryUser mysql.User
 	err := tx.Where("user_account = ?", req.UserAccount).First(&queryUser).Error
 	if err != nil {
 		global.CHAT_LOG.Error("LoginAccount-->检查用户账号，数据库操作错误", "err", err)

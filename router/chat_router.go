@@ -12,6 +12,6 @@ func (s *ChatRouter) InitChatRouter(apiV1 *gin.RouterGroup) {
 	// 聊天相关路由 - 需要认证
 	chatGroup := apiV1.Group("/chat")
 	{
-		chatGroup.GET("/ChatConn", v1.ApiGroupApp.ChatConn)
+		chatGroup.GET("/webSocketHandler", v1.ApiGroupApp.WebSocketHandler)
 	}
 }
