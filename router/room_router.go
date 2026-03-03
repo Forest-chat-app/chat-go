@@ -13,6 +13,7 @@ func (r *RoomRouter) InitRoomRouter(apiV1 *gin.RouterGroup) {
 	{
 		roomGroup.POST("/createRoom", v1.ApiGroupApp.CreateRoom)
 		roomGroup.GET("/searchRoom", v1.ApiGroupApp.SearchRoom)
+		roomGroup.POST("/joinRoom", v1.ApiGroupApp.JoinRoom)
 
 	}
 

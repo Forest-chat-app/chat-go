@@ -12,7 +12,7 @@ import (
 
 type ChatApi struct{}
 
-// WebSocketHandler 处理WebSocket连接
+// ChatConn 处理WebSocket连接
 // @Summary 建立WebSocket连接
 // @Description 建立WebSocket连接以接收和发送实时消息
 // @Tags 聊天
@@ -21,7 +21,7 @@ type ChatApi struct{}
 // @Param room_id query string true "房间ID"
 // @Security BearerAuth
 // @Success 101 {string} string "Switching Protocols to WebSocket"
-// @Router /api/v1/chat/webSocketHandler [get]
+// @Router /api/v1/chat/ChatConn [get]
 func (chatApi *ChatApi) ChatConn(c *gin.Context) {
 	// 获取要连接的房间id
 	roomId := c.Query("room_id")

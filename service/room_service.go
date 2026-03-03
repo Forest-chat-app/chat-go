@@ -3,8 +3,8 @@ package service
 import (
 	"chat-server/constant"
 	"chat-server/global"
-	"chat-server/model"
 	"chat-server/model/common"
+	"chat-server/model/mysql"
 	"chat-server/model/request/room"
 	"chat-server/utils"
 	"fmt"
@@ -62,6 +62,23 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
+	// 4、加入聊天室
+	var queryRole model.Role
+	tx.First(&queryRole, "role_id = ?", constant.RoleGroupOwner)
+	if queryRole.ID == "" {
+		return nil, common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+	var joinRoom = model.RoomMembers{
+		ID:         utils.GenerateUUid(),
+		UserID:     userId,
+		RoomID:     createRoom.ID,
+		JoinedAt:   utils.GetUTCMillisTimestamp(),
+		LastReadId: "",
+		UserRole:   queryRole.ID,
+	}
+	tx.Create(&joinRoom)
+
+	// 5、返回数据
 	data := map[string]interface{}{
 		"roomID": createRoom.ID,
 	}
@@ -114,4 +131,49 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 		"rooms": rooms,
 	}
 	return data, nil
+}
+
+// 加入房间
+func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[string]interface{}, error) {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) {
+		return nil, common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	// 2、开启mysql事务
+	tx := global.CHAT_MYSQL.Begin()
+	if tx.Error != nil {
+		global.CHAT_LOG.Error("SearchRoom-->开启Mysql事务失败", "err", tx.Error.Error())
+		return nil, common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			global.CHAT_LOG.Error("SearchRoom-->捕捉到panic", "err", r)
+			tx.Rollback()
+		} else if tx.Error != nil {
+			global.CHAT_LOG.Error("SearchRoom-->捕捉到tx.Error", "err", r)
+			tx.Rollback()
+		} else {
+			tx.Commit()
+			global.CHAT_LOG.Info(fmt.Sprintf("SearchRoom-->%s-->mysql无报错", req.RoomId))
+		}
+	}()
+
+	// 3、查询房间是否存在
+	var queryRoom model.Room
+	tx.First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.ID == "" {
+		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+
+	// 4、加入房间
+	var joinRoom = model.RoomMembers{
+		ID:         utils.GenerateUUid(),
+		UserID:     userId,
+		RoomID:     req.RoomId,
+		JoinedAt:   utils.GetUTCMillisTimestamp(),
+		LastReadId: req.RoomId,
+	}
+	tx.Create(&joinRoom)
+	return nil, nil
 }

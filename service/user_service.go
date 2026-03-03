@@ -2,9 +2,9 @@ package service
 
 import (
 	"chat-server/global"
-	"chat-server/model"
 	"chat-server/model/common"
 	"chat-server/model/request/user"
+	"chat-server/model/mysql"
 	"chat-server/utils"
 	"context"
 	"encoding/json"
