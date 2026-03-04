@@ -108,6 +108,34 @@ func (manager *WebSocketManager) UserLogout(client *Client) {
 	manager.mu.Unlock()
 }
 
+// JoinRoom 加入房间
+func (manager *WebSocketManager) JoinRoom(roomId string, userId string) {
+	// 1、获取client
+	client := manager.Clients[userId]
+
+	// 2、把client加入到对应房间
+	manager.mu.Lock()
+	if _, ok := manager.Rooms[roomId]; !ok {
+		manager.Rooms[roomId] = make(map[*Client]bool)
+	}
+	manager.Rooms[roomId][client[0]] = true
+	manager.mu.Unlock()
+}
+
+// LeaveRoom 离开房间
+func (manager *WebSocketManager) LeaveRoom(roomId string, userId string) {
+	// 1、获取client
+	client := manager.Clients[userId]
+
+	// 2、从该房间删除用户
+	manager.mu.Lock()
+	clients, _ := manager.Rooms[roomId]
+	if _, exist := clients[client[0]]; exist {
+		delete(manager.Rooms[roomId], client[0])
+	}
+	manager.mu.Unlock()
+}
+
 // BroadcastToRoom 推送消息
 func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.WebSocketMessage) {
 	manager.mu.Lock()

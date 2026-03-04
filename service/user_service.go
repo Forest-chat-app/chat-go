@@ -1,6 +1,7 @@
 package service
 
 import (
+	"chat-server/constant"
 	"chat-server/global"
 	"chat-server/model/common"
 	"chat-server/model/mysql"
@@ -9,13 +10,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"time"
 )
 
 type UserService struct{}
 
 // RegisterUser 注册用户
-func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interface{}, error) {
+func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (map[string]interface{}, error) {
 	tx := global.CHAT_MYSQL.Begin()
 
 	if tx.Error != nil {
@@ -61,20 +64,15 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interfa
 		return nil, common.NewServiceError(common.EMAIL_INVALID)
 	}
 
-	// 判断头像url是否合法
-	if !utils.VerifyAvatar(req.Avatar) {
-		return nil, common.NewServiceError(common.AVATAR_INVALID)
-	}
-
 	// 创建新用户
-	userID := uuid.New().String()
+	userID := utils.GenerateUUid()
 	createUser := mysql.User{
 		ID:          userID,
 		UserAccount: req.UserAccount,
 		Password:    hashedPassword,
-		Nickname:    req.UserAccount,
+		Nickname:    req.NickName,
 		Email:       req.Email,
-		Avatar:      req.Avatar,
+		Avatar:      constant.Avatar,
 		CreatedAt:   utils.GetUTCMillisTimestamp(),
 		UpdatedAt:   utils.GetUTCMillisTimestamp(),
 	}
@@ -93,7 +91,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interfa
 		return nil, common.NewServiceError(common.GENERATE_TOKEN_ERROR)
 	}
 	// 在redis保存RefreshToken状态
-	tokenId := uuid.New().String()
+	tokenId := utils.GenerateUUid()
 	err = utils.StoreRefreshToken(userID, tokenId, req.Platform)
 	if err != nil {
 		tx.Error = err
@@ -102,18 +100,31 @@ func (s *UserService) RegisterUser(req user.RegisterRequest) (map[string]interfa
 	}
 
 	// 处理返回数据
+	// 设置refresh_token为http only
+	cookieName := "refresh_token"
+	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
+	// 设置 Cookie
+	c.SetCookie(
+		cookieName,             // Cookie 名称
+		tokenPair.RefreshToken, // Cookie 值
+		maxAge,                 // Cookie 的最大生命周期（秒）
+		"/",                    // Cookie 路径，"/" 表示所有路径都可访问
+		"",                     // Cookie 作用域，生产环境应替换为你的域名，例如 "api.yourdomain.com" 或 "yourdomain.com"
+		// 开发测试时可以用 "localhost" 或留空
+		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
+		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
+	)
 	data := map[string]interface{}{
-		"user":          createUser,
-		"access_token":  tokenPair.AccessToken,
-		"refresh_token": tokenPair.RefreshToken,
-		"expires_in":    tokenPair.ExpiresIn,
+		"user":         createUser,
+		"access_token": tokenPair.AccessToken,
+		"expires_in":   tokenPair.ExpiresIn,
 	}
 
 	return data, nil
 }
 
 // LoginAccount 账号登录
-func (s *UserService) LoginAccount(req user.LoginRequest) (map[string]interface{}, error) {
+func (s *UserService) LoginAccount(req user.LoginRequest, c *gin.Context) (map[string]interface{}, error) {
 	tx := global.CHAT_MYSQL.Begin()
 	redis := global.CHAT_REDIS
 	ctx := context.Background()
@@ -207,11 +218,24 @@ func (s *UserService) LoginAccount(req user.LoginRequest) (map[string]interface{
 	}
 
 	// 处理返回数据
+	// 设置refresh_token为http only
+	cookieName := "refresh_token"
+	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
+	// 设置 Cookie
+	c.SetCookie(
+		cookieName,             // Cookie 名称
+		tokenPair.RefreshToken, // Cookie 值
+		maxAge,                 // Cookie 的最大生命周期（秒）
+		"/",                    // Cookie 路径，"/" 表示所有路径都可访问
+		"",                     // Cookie 作用域，生产环境应替换为你的域名，例如 "api.yourdomain.com" 或 "yourdomain.com"
+		// 开发测试时可以用 "localhost" 或留空
+		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
+		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
+	)
 	data := map[string]interface{}{
-		"user":          queryUser,
-		"access_token":  tokenPair.AccessToken,
-		"refresh_token": tokenPair.RefreshToken,
-		"expires_in":    tokenPair.ExpiresIn,
+		"user":         queryUser,
+		"access_token": tokenPair.AccessToken,
+		"expires_in":   tokenPair.ExpiresIn,
 	}
 
 	return data, nil

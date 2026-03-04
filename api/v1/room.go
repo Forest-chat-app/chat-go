@@ -87,10 +87,10 @@ func (r *RoomApi) SearchRoom(c *gin.Context) {
 // @Tags 聊天
 // @Accept json
 // @Produce json
-// @Param request body room.searchRoom true "加入聊天室请求"
+// @Param request body room.joinRoom true "加入聊天室请求"
 // @Security BearerAuth
 // @Success      200      {object}  common.Response
-// @Router /api/v1/room/joinRoom [get]
+// @Router /api/v1/room/joinRoom [post]
 func (r *RoomApi) JoinRoom(c *gin.Context) {
 	// 1、校验参数
 	req := room.JoinRoomRequest{}
@@ -116,5 +116,106 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 		}
 		return
 	}
+	common.Result(c, common.SUCCESS)
+}
+
+// QuitRoom 退出聊天室
+// @Summary 退出聊天室
+// @Description 退出聊天室
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param request body room.quitRoom true "退出聊天室请求"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/quitRoom [delete]
+func (r *RoomApi) QuitRoom(c *gin.Context) {
+	// 1、校验参数
+	req := room.QuitRoomRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+
+	// 3、退出房间
+	data, err := roomService.QuitRoom(req, userId)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
+// PreviewRoom 预览聊天室
+// @Summary 预览聊天室
+// @Description 预览聊天室
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param request body room.searchRoom true "预览聊天室请求"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/previewRoom [get]
+func (r *RoomApi) PreviewRoom(c *gin.Context) {
+	// 1、校验参数
+	req := room.PreviewRoomRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+
+	// 3、加入房间预览
+	roomService.PreviewRoom(req, userId)
+	common.Result(c, common.SUCCESS)
+
+}
+
+// LeavePreview 预览聊天室
+// @Summary 退出预览聊天室
+// @Description 预览聊天室
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param request body room.leavePreview true "预览聊天室请求"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/leavePreview [delete]
+func (r *RoomApi) LeavePreview(c *gin.Context) {
+	// 1、校验参数
+	req := room.LeavePreviewRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+
+	// 3、加入房间预览
+	roomService.LeavePreview(req, userId)
 	common.Result(c, common.SUCCESS)
 }

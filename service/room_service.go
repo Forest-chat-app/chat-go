@@ -2,6 +2,7 @@ package service
 
 import (
 	"chat-server/constant"
+	"chat-server/core"
 	"chat-server/global"
 	"chat-server/model/common"
 	"chat-server/model/mysql"
@@ -13,7 +14,7 @@ import (
 
 type RoomService struct{}
 
-// 创建房间
+// CreateRoom 创建房间
 func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map[string]interface{}, error) {
 	// 1、校验参数
 	if !utils.VerifyString(req.RoomName) || !utils.VerifyString(req.Introduction) || !utils.VerifyString(req.Tag) || !utils.VerifyString(userId) {
@@ -85,7 +86,7 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	return data, nil
 }
 
-// 搜索房间
+// SearchRoom 搜索房间
 func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interface{}, error) {
 	// 1、校验参数
 	if !utils.VerifyString(req.Content) {
@@ -133,7 +134,7 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 	return data, nil
 }
 
-// 加入房间
+// JoinRoom 加入房间
 func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[string]interface{}, error) {
 	// 1、校验参数
 	if !utils.VerifyString(req.RoomId) {
@@ -192,4 +193,66 @@ func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[str
 	//}
 	//manager.BroadcastToRoom(client.RoomId, joinMsg)
 	return nil, nil
+}
+
+// QuitRoom 退出房间
+func (r *RoomService) QuitRoom(req room.QuitRoomRequest, userId string) (map[string]interface{}, error) {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) {
+		return nil, common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	// 2、开启mysql事务
+	tx := global.CHAT_MYSQL.Begin()
+	if tx.Error != nil {
+		global.CHAT_LOG.Error("QuitRoom-->开启Mysql事务失败", "err", tx.Error.Error())
+		return nil, common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			global.CHAT_LOG.Error("QuitRoom-->捕捉到panic", "err", r)
+			tx.Rollback()
+		} else if tx.Error != nil {
+			global.CHAT_LOG.Error("QuitRoom-->捕捉到tx.Error", "err", r)
+			tx.Rollback()
+		} else {
+			tx.Commit()
+			global.CHAT_LOG.Info(fmt.Sprintf("QuitRoom-->%s-->mysql无报错", req.RoomId))
+		}
+	}()
+
+	// 3、查询房间是否存在
+	var queryRoom mysql.Room
+	tx.First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.ID == "" {
+		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+
+	// 4、退出房间
+	var queryRoomMembers mysql.RoomMembers
+	tx.First(&queryRoomMembers, "room_id = ? AND user_id = ?", req.RoomId, userId)
+	if queryRoomMembers.ID == "" {
+		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+
+	// 5、退出房间
+	tx.Delete(&queryRoomMembers)
+
+	// 6、返回数据
+	data := map[string]interface{}{
+		"roomID": queryRoom.ID,
+	}
+	return data, nil
+}
+
+// PreviewRoom 预览房间
+func (r *RoomService) PreviewRoom(req room.PreviewRoomRequest, userId string) {
+	// 1、加入房间
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).JoinRoom(req.RoomId, userId)
+}
+
+// LeavePreview 退出预览
+func (r *RoomService) LeavePreview(req room.LeavePreviewRequest, userId string) {
+	// 1、退出房间
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).LeaveRoom(req.RoomId, userId)
 }
