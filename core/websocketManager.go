@@ -136,6 +136,17 @@ func (manager *WebSocketManager) LeaveRoom(roomId string, userId string) {
 	manager.mu.Unlock()
 }
 
+// GetRoomOnlineCounts 返回每个房间的在线用户数
+func (manager *WebSocketManager) GetRoomOnlineCounts() map[string]int {
+	manager.mu.Lock()
+	counts := make(map[string]int, len(manager.Rooms))
+	for roomId, clients := range manager.Rooms {
+		counts[roomId] = len(clients)
+	}
+	manager.mu.Unlock()
+	return counts
+}
+
 // BroadcastToRoom 推送消息
 func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.WebSocketMessage) {
 	manager.mu.Lock()

@@ -53,6 +53,10 @@ func JWTAuth() gin.HandlerFunc {
 		// 不在排除列表中，执行JWT验证
 		token := c.Request.Header.Get("Authorization")
 		if token == "" {
+			// WebSocket 等场景可能通过 URL 传 token
+			token = c.Query("token")
+		}
+		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
 				"data":    nil,
@@ -63,9 +67,7 @@ func JWTAuth() gin.HandlerFunc {
 		}
 
 		// 移除Bearer前缀
-		if strings.HasPrefix(token, "Bearer ") {
-			token = token[7:]
-		}
+		token = strings.TrimPrefix(token, "Bearer ")
 
 		// 验证token
 		claims, err := jwt.ParseWithClaims(token, &AccessToken{}, func(token *jwt.Token) (interface{}, error) {

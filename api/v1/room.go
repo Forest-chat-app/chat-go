@@ -81,6 +81,28 @@ func (r *RoomApi) SearchRoom(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 }
 
+// HotRoom 获取热门聊天室
+// @Summary 获取热门聊天室
+// @Description 获取热门聊天室
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/hotRoom [get]
+func (r *RoomApi) HotRoom(c *gin.Context) {
+	// 1、处理业务
+	data, err := roomService.HotRoom()
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
 // JoinRoom 加入聊天室
 // @Summary 加入聊天室
 // @Description 加入聊天室
@@ -163,7 +185,7 @@ func (r *RoomApi) QuitRoom(c *gin.Context) {
 // @Tags 聊天
 // @Accept json
 // @Produce json
-// @Param request body room.searchRoom true "预览聊天室请求"
+// @Param request body room.previewRoom true "预览聊天室请求"
 // @Security BearerAuth
 // @Success      200      {object}  common.Response
 // @Router /api/v1/room/previewRoom [get]

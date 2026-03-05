@@ -47,6 +47,7 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 			c.Abort()
 			return
 		}
+		userId = claims.Claims.(*middleware.AccessToken).UserID
 	} else {
 		userId = claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
 	}

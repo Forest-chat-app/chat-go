@@ -1,10 +1,12 @@
 package v1
 
 import (
+	"chat-server/middleware"
 	"chat-server/model/common"
 	"chat-server/model/request/user"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type UserApi struct{}
@@ -91,4 +93,34 @@ func (userApi *UserApi) LoginAccount(c *gin.Context) {
 
 	common.Result(c, common.SUCCESS, data)
 
+}
+
+// GetUserInfo Login godoc
+// @Summary      获取用户信息
+// @Description  获取用户信息
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param        Authorization  header  string  true  "refreshToken"
+// @Success      200      {object}  common.Response
+// @Router       /api/v1/user/getUserInfo [get]
+func (userApi *UserApi) GetUserInfo(c *gin.Context) {
+	// 1、获取用户ID
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+
+	// 2、获取用户信息
+	data, err := userService.GetUserInfo(userId)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
 }

@@ -13,6 +13,7 @@ func (s *UserRouter) InitUserRouter(apiV1 *gin.RouterGroup) {
 	{
 		userGroup.POST("/register", v1.ApiGroupApp.Register)
 		userGroup.POST("/loginAccount", v1.ApiGroupApp.LoginAccount)
+		userGroup.GET("/getUserInfo", v1.ApiGroupApp.GetUserInfo)
 		userGroup.GET("/test", v1.ApiGroupApp.Test)
 	}
 }

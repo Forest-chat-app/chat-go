@@ -9,6 +9,7 @@ import (
 	"chat-server/utils"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,8 +20,8 @@ type UserService struct{}
 
 // RegisterUser 注册用户
 func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (map[string]interface{}, error) {
+	// 1、开启Mysql事务
 	tx := global.CHAT_MYSQL.Begin()
-
 	if tx.Error != nil {
 		global.CHAT_LOG.Error("RegisterUser-->开启Mysql事务失败", "err", tx.Error.Error())
 		return nil, common.NewServiceError(common.ERROR)
@@ -37,7 +38,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 			global.CHAT_LOG.Info(fmt.Sprintf("RegisterUser-->%s-->mysql无报错", req.UserAccount))
 		}
 	}()
-	// 检查用户名是否已存在
+	// 2、检查用户名是否已存在
 	var count int64
 	err := tx.Model(&mysql.User{}).Where("user_account = ?", req.UserAccount).Count(&count).Error
 	if err != nil {
@@ -49,7 +50,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		return nil, common.NewServiceError(common.USER_ACCOUNT_EXISTS)
 	}
 
-	// 判断密码是否合法
+	// 3、校验参数
 	if len(req.Password) <= 0 {
 		return nil, common.NewServiceError(common.PASSWORD_INVALID)
 	}
@@ -59,19 +60,14 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
-	// 判断邮箱是否合法
-	if len(req.Email) > 0 && !utils.VerifyEmail(req.Email) {
-		return nil, common.NewServiceError(common.EMAIL_INVALID)
-	}
-
-	// 创建新用户
+	// 4、创建新用户
 	userID := utils.GenerateUUid()
 	createUser := mysql.User{
 		ID:          userID,
 		UserAccount: req.UserAccount,
 		Password:    hashedPassword,
-		Nickname:    req.NickName,
-		Email:       req.Email,
+		Nickname:    constant.Nickname,
+		Email:       constant.Email,
 		Avatar:      constant.Avatar,
 		CreatedAt:   utils.GetUTCMillisTimestamp(),
 		UpdatedAt:   utils.GetUTCMillisTimestamp(),
@@ -82,15 +78,34 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		global.CHAT_LOG.Error("RegisterUser-->创建用户，数据库操作错误", "err", err)
 		return nil, common.NewServiceError(common.ERROR)
 	}
+	// 4.1、创建用户角色
+	var queryRole mysql.Role
+	tx.First(&queryRole, "role_id = ?", constant.RoleNormalUser)
+	if queryRole.ID == "" {
+		return nil, common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+	userRole := mysql.UserRole{
+		ID:        utils.GenerateUUid(),
+		UserID:    userID,
+		RoleID:    queryRole.ID,
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+		UpdatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	err = tx.Create(&userRole).Error
+	if err != nil {
+		tx.Error = err
+		global.CHAT_LOG.Error("RegisterUser-->创建用户角色，数据库操作错误", "err", err)
+		return nil, common.NewServiceError(common.ERROR)
+	}
 
-	// 创建用户成功, 生成token
+	// 5、创建用户成功, 生成token
 	tokenPair, err := utils.GenerateTokenPair(userID, req.UserAccount)
 	if err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("RegisterUser-->生成token失败", "err", err)
 		return nil, common.NewServiceError(common.GENERATE_TOKEN_ERROR)
 	}
-	// 在redis保存RefreshToken状态
+	// 5.1、在redis保存RefreshToken状态
 	tokenId := utils.GenerateUUid()
 	err = utils.StoreRefreshToken(userID, tokenId, req.Platform)
 	if err != nil {
@@ -99,11 +114,10 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		return nil, common.NewServiceError(common.ERROR)
 	}
 
-	// 处理返回数据
-	// 设置refresh_token为http only
+	// 6、处理返回数据
+	// 6.1设置refresh_token为http only
 	cookieName := "refresh_token"
 	maxAge := int(time.Duration(global.CHAT_CONFIG.JWT.RefreshTime) * 24 * time.Hour / time.Second)
-	// 设置 Cookie
 	c.SetCookie(
 		cookieName,             // Cookie 名称
 		tokenPair.RefreshToken, // Cookie 值
@@ -114,8 +128,8 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		false, // Secure: 只在 HTTPS 连接中发送此 Cookie
 		true,  // HttpOnly: 无法通过 JavaScript 访问此 Cookie
 	)
+	// 7、返回数据
 	data := map[string]interface{}{
-		"user":         createUser,
 		"access_token": tokenPair.AccessToken,
 		"expires_in":   tokenPair.ExpiresIn,
 	}
@@ -238,5 +252,45 @@ func (s *UserService) LoginAccount(req user.LoginRequest, c *gin.Context) (map[s
 		"expires_in":   tokenPair.ExpiresIn,
 	}
 
+	return data, nil
+}
+
+// GetUserInfo 获取用户信息
+func (s *UserService) GetUserInfo(userId string) (map[string]interface{}, error) {
+	tx := global.CHAT_MYSQL
+	// 1、获取用户信息
+	user, err := utils.GetUserByID(userId)
+	if err != nil {
+		global.CHAT_LOG.Error("GetUserInfo-->获取用户信息失败", "err", err)
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			return nil, err
+		}
+		return nil, err
+	}
+	// 2、获取用户角色信息
+	var userRole mysql.UserRole
+	tx.First(&userRole, "user_id = ?", userId)
+	if userRole.ID == "" {
+		return nil, common.NewServiceError(common.USER_ROLE_NOT_FOUND)
+	}
+	var role mysql.Role
+	tx.First(&role, "id = ?", userRole.RoleID)
+	if role.ID == "" {
+		return nil, common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+	// 3、获取该用户所有房间
+	var roomIDs []string
+	tx.Model(&mysql.RoomMembers{}).Where("user_id = ?", userId).Pluck("room_id", &roomIDs)
+	var rooms []mysql.Room
+	if len(roomIDs) > 0 {
+		tx.Where("id IN ?", roomIDs).Find(&rooms)
+	}
+	// 4、返回数据
+	data := map[string]interface{}{
+		"user":  user,
+		"role":  role,
+		"rooms": rooms,
+	}
 	return data, nil
 }

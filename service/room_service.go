@@ -9,6 +9,7 @@ import (
 	"chat-server/model/request/room"
 	"chat-server/utils"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -94,33 +95,18 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 	}
 
 	// 2、开启mysql事务
-	tx := global.CHAT_MYSQL.Begin()
-	if tx.Error != nil {
-		global.CHAT_LOG.Error("SearchRoom-->开启Mysql事务失败", "err", tx.Error.Error())
-		return nil, common.NewServiceError(common.ERROR)
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			global.CHAT_LOG.Error("SearchRoom-->捕捉到panic", "err", r)
-			tx.Rollback()
-		} else if tx.Error != nil {
-			global.CHAT_LOG.Error("SearchRoom-->捕捉到tx.Error", "err", r)
-			tx.Rollback()
-		} else {
-			tx.Commit()
-			global.CHAT_LOG.Info(fmt.Sprintf("SearchRoom-->%s-->mysql无报错", req.Content))
-		}
-	}()
+	tx := global.CHAT_MYSQL
 
 	// 3、搜索聊天室
 	var rooms []mysql.Room
 	switch req.Type {
 	case 1:
-		tx.Where("room_name LIKE ?", "%"+req.Content+"%").Find(&rooms)
+		tx.Where("room_name LIKE ? AND status = ?", "%"+req.Content+"%", constant.StatusPublic).Find(&rooms)
 	case 2:
-		tx.Where("introduction LIKE ?", "%"+req.Content+"%").Find(&rooms)
+		tx.Where("introduction LIKE ? AND status = ?", "%"+req.Content+"%", constant.StatusPublic).Find(&rooms)
 	case 3: // 多个标签需要拆开查询
 		tags := strings.Split(strings.Trim(req.Content, "#"), "#")
+		tx = tx.Where("status = ?", constant.StatusPublic)
 		for _, tag := range tags {
 			tx = tx.Where("tag LIKE ?", "%#"+tag+"%")
 		}
@@ -128,6 +114,30 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 	}
 
 	// 4、返回数据
+	data := map[string]interface{}{
+		"rooms": rooms,
+	}
+	return data, nil
+}
+
+// HotRoom 获取热门聊天室
+func (r *RoomService) HotRoom() (map[string]interface{}, error) {
+	// 1、获取所有公开房间
+	tx := global.CHAT_MYSQL
+	var rooms []mysql.Room
+	tx.Where("status = ?", constant.StatusPublic).Find(&rooms)
+
+	// 2、从WebSocket连接池获取每个房间的在线人数，并排序
+	manager := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
+	onlineCounts := manager.GetRoomOnlineCounts()
+	sort.Slice(rooms, func(i, j int) bool {
+		return onlineCounts[rooms[i].ID] > onlineCounts[rooms[j].ID]
+	})
+
+	// 3、取前50个
+	if len(rooms) > 50 {
+		rooms = rooms[:50]
+	}
 	data := map[string]interface{}{
 		"rooms": rooms,
 	}
@@ -184,14 +194,14 @@ func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[str
 	tx.Create(&joinRoom)
 
 	// 5、发送加入消息
-	//joinMsg := &common.WebSocketMessage{
-	//	Type:      constant.MessageTypeJoin,
-	//	RoomId:    client.RoomId,
-	//	SenderId:  client.UserId,
-	//	Content:   map[string]interface{}{constant.MessageTypeJoin: constant.JoinMessageContent, constant.MessageTypeLeave: nil, constant.MessageTypeSystem: nil},
-	//	CreatedAt: utils.GetUTCMillisTimestamp(),
-	//}
-	//manager.BroadcastToRoom(client.RoomId, joinMsg)
+	joinMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeJoin,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{constant.MessageTypeJoin: constant.JoinMessageContent, constant.MessageTypeLeave: nil, constant.MessageTypeSystem: nil},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, joinMsg)
 	return nil, nil
 }
 
