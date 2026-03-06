@@ -13,5 +13,6 @@ func (s *ChatRouter) InitChatRouter(apiV1 *gin.RouterGroup) {
 	chatGroup := apiV1.Group("/chat")
 	{
 		chatGroup.GET("/webSocketHandler", v1.ApiGroupApp.WebSocketHandler)
+		chatGroup.GET("/getHistoryMsg", v1.ApiGroupApp.GetHistoryMsg)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"chat-server/model/common"
 	"chat-server/model/mysql"
 	"chat-server/model/request/room"
+	"chat-server/model/response"
 	"chat-server/utils"
 	"fmt"
 	"sort"
@@ -127,19 +128,30 @@ func (r *RoomService) HotRoom() (map[string]interface{}, error) {
 	var rooms []mysql.Room
 	tx.Where("status = ?", constant.StatusPublic).Find(&rooms)
 
-	// 2、从WebSocket连接池获取每个房间的在线人数，并排序
+	// 2、从WebSocket连接池获取每个房间的在线人数
 	manager := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
 	onlineCounts := manager.GetRoomOnlineCounts()
-	sort.Slice(rooms, func(i, j int) bool {
-		return onlineCounts[rooms[i].ID] > onlineCounts[rooms[j].ID]
+
+	// 3、构建带在线人数的房间列表
+	roomsWithCount := make([]response.RoomWithOnlineCount, len(rooms))
+	for i, room := range rooms {
+		roomsWithCount[i] = response.RoomWithOnlineCount{
+			Room:        room,
+			OnlineCount: onlineCounts[room.ID],
+		}
+	}
+
+	// 4、按在线人数排序
+	sort.Slice(roomsWithCount, func(i, j int) bool {
+		return roomsWithCount[i].OnlineCount > roomsWithCount[j].OnlineCount
 	})
 
-	// 3、取前50个
-	if len(rooms) > 50 {
-		rooms = rooms[:50]
+	// 5、取前50个
+	if len(roomsWithCount) > 50 {
+		roomsWithCount = roomsWithCount[:50]
 	}
 	data := map[string]interface{}{
-		"rooms": rooms,
+		"rooms": roomsWithCount,
 	}
 	return data, nil
 }

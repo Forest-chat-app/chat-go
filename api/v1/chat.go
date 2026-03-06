@@ -5,6 +5,8 @@ import (
 	"chat-server/global"
 	"chat-server/middleware"
 	"chat-server/model/common"
+	"chat-server/model/request/chat"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
@@ -73,4 +75,33 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 	// 3.2 客户端启动读写协程
 	go client.ReadPump()
 	go client.WritePump()
+}
+
+// GetHistoryMsg 获取历史消息
+// @Summary 获取历史消息
+// @Description 获取历史消息
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param room_id query string true "房间ID"
+// @Param page query string true "页码"
+// @Param page_size query string true "每页条数"
+// @Security BearerAuth
+// @Success 200 {object} common.Response "获取历史消息成功"
+// @Router /api/v1/chat/getHistoryMsg [get]
+func (chatApi *ChatApi) GetHistoryMsg(c *gin.Context) {
+	req := chat.HistoryMsgRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	data, err := chatService.GetHistoryMsg(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
 }

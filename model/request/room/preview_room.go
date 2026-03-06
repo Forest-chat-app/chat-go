@@ -5,5 +5,5 @@ type PreviewRoomRequest struct {
 }
 
 type LeavePreviewRequest struct {
-	RoomId string `form:"room_id" binding:"required"`
+	RoomId string `json:"room_id" binding:"required"`
 }
