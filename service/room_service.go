@@ -81,7 +81,11 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	}
 	tx.Create(&joinRoom)
 
-	// 5、返回数据
+	// 5、加入到ws连接中
+	ws := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
+	ws.JoinRoom(createRoom.ID, userId)
+
+	// 6、返回数据
 	data := map[string]interface{}{
 		"roomID": createRoom.ID,
 	}
