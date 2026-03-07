@@ -18,7 +18,7 @@ type TokenApi struct{}
 // @Produce      json
 // @Param        Authorization  header  string  true  "refreshToken"
 // @Success      200  {object}  common.Response
-// @Router       /api/v1/token/refreshToken [get]
+// @Router       /api/v1/token/refreshToken [post]
 func (a *TokenApi) RefreshToken(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
@@ -34,12 +34,12 @@ func (a *TokenApi) RefreshToken(c *gin.Context) {
 		return
 	}
 	// 生成新令牌对
-	tokenPair, err := tokenService.RefreshAccessToken(refreshToken)
+	data, err := tokenService.RefreshAccessToken(refreshToken, c)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
 			common.Result(c, serviceErr.GetResponseCode())
 		}
 	}
-	common.Result(c, common.SUCCESS, tokenPair)
+	common.Result(c, common.SUCCESS, data)
 }

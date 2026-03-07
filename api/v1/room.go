@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"chat-server/middleware"
+	"chat-server/utils"
 	"errors"
 
 	//"chat-server/middleware"
@@ -37,7 +37,7 @@ func (r *RoomApi) CreateRoom(c *gin.Context) {
 		common.Result(c, common.USER_NOT_FOUND)
 		return
 	}
-	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
 	// 处理业务
 	data, err := roomService.CreateRoom(req, userId)
@@ -127,7 +127,7 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 		common.Result(c, common.USER_NOT_FOUND)
 		return
 	}
-	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
 	// 3、处理业务
 	_, err := roomService.JoinRoom(req, userId)
@@ -165,7 +165,7 @@ func (r *RoomApi) QuitRoom(c *gin.Context) {
 		common.Result(c, common.USER_NOT_FOUND)
 		return
 	}
-	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
 	// 3、退出房间
 	data, err := roomService.QuitRoom(req, userId)
@@ -203,7 +203,7 @@ func (r *RoomApi) PreviewRoom(c *gin.Context) {
 		common.Result(c, common.USER_NOT_FOUND)
 		return
 	}
-	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
 	// 3、加入房间预览
 	roomService.PreviewRoom(req, userId)
@@ -235,7 +235,7 @@ func (r *RoomApi) LeavePreview(c *gin.Context) {
 		common.Result(c, common.USER_NOT_FOUND)
 		return
 	}
-	userId := claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
 	// 3、加入房间预览
 	roomService.LeavePreview(req, userId)

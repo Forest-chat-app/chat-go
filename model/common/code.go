@@ -21,6 +21,10 @@ var (
 	AVATAR_INVALID         = ResponseCode{Code: 407, Msg: "头像格式错误"}
 	ROLE_NOT_FOUND         = ResponseCode{Code: 408, Msg: "角色不存在"}
 	USER_ROLE_NOT_FOUND    = ResponseCode{Code: 409, Msg: "用户角色不存在"}
+	USER_ACCOUNT_DUPLICATE = ResponseCode{Code: 410, Msg: "该账号已被使用"}
+	EMAIL_DUPLICATE        = ResponseCode{Code: 411, Msg: "该邮箱已被使用"}
+	PLATFORM_LOGGED_IN     = ResponseCode{Code: 412, Msg: "该平台已登录"}
+
 	// 房间相关:431-460
 	ROOM_NOT_FOUND = ResponseCode{Code: 431, Msg: "房间不存在"}
 

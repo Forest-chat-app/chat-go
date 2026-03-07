@@ -108,6 +108,27 @@ func (manager *WebSocketManager) UserLogout(client *Client) {
 	manager.mu.Unlock()
 }
 
+// UserLogoutByUserId 根据用户ID注销所有客户端连接
+func (manager *WebSocketManager) UserLogoutByUserId(userId string) {
+	manager.mu.Lock()
+	clients, exists := manager.Clients[userId]
+	if !exists {
+		manager.mu.Unlock()
+		return
+	}
+	for _, client := range clients {
+		for roomId, roomClients := range manager.Rooms {
+			if _, exist := roomClients[client]; exist {
+				delete(manager.Rooms[roomId], client)
+			}
+		}
+		close(client.Send)
+		client.Conn.Close()
+	}
+	delete(manager.Clients, userId)
+	manager.mu.Unlock()
+}
+
 // JoinRoom 加入房间
 func (manager *WebSocketManager) JoinRoom(roomId string, userId string) {
 	// 1、获取client

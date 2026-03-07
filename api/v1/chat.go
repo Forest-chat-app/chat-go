@@ -3,9 +3,9 @@ package v1
 import (
 	"chat-server/core"
 	"chat-server/global"
-	"chat-server/middleware"
 	"chat-server/model/common"
 	"chat-server/model/request/chat"
+	"chat-server/utils"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
@@ -37,7 +37,7 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 			return
 		}
 		// 1.2 调用你的 JWT 工具类手动解析
-		claims, err := jwt.ParseWithClaims(token, &middleware.AccessToken{}, func(token *jwt.Token) (interface{}, error) {
+		claims, err := jwt.ParseWithClaims(token, &utils.AccessToken{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(global.CHAT_CONFIG.JWT.Secret), nil
 		})
 		if err != nil || !claims.Valid {
@@ -49,9 +49,9 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 			c.Abort()
 			return
 		}
-		userId = claims.Claims.(*middleware.AccessToken).UserID
+		userId = claims.Claims.(*utils.AccessToken).UserID
 	} else {
-		userId = claims.(*jwt.Token).Claims.(*middleware.AccessToken).UserID
+		userId = claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 	}
 
 	// 2、升级websocket连接

@@ -8,8 +8,8 @@ import (
 type TokenRouter struct{}
 
 func (s *TokenRouter) InitTokenRouter(apiV1 *gin.RouterGroup) {
-	apiV1.Group("/token")
+	tokenGroup := apiV1.Group("/token")
 	{
-		apiV1.POST("/refreshToken", v1.ApiGroupApp.Register)
+		tokenGroup.POST("/refreshToken", v1.ApiGroupApp.RefreshToken)
 	}
 }

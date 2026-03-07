@@ -30,5 +30,6 @@ func InitRouter() {
 	router.RouterGroupApp.UserRouter.InitUserRouter(apiV1)
 	router.RouterGroupApp.ChatRouter.InitChatRouter(apiV1)
 	router.RouterGroupApp.RoomRouter.InitRoomRouter(apiV1)
+	router.RouterGroupApp.TokenRouter.InitTokenRouter(apiV1)
 
 }
