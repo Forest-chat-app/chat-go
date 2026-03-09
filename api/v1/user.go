@@ -125,17 +125,17 @@ func (userApi *UserApi) GetUserInfo(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 }
 
-// UpdateUserInfo godoc
+// UpdateUserProfile godoc
 // @Summary      更新用户信息
 // @Description  更新用户信息，空串字段不修改
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        request  body      user.UpdateUserInfoRequest  true  "用户信息"
+// @Param        request  body      user.UpdateUserProfileRequest  true  "用户信息"
 // @Success      200      {object}  common.Response
-// @Router       /api/v1/user/updateUserInfo [put]
-func (userApi *UserApi) UpdateUserInfo(c *gin.Context) {
-	var req user.UpdateUserInfoRequest
+// @Router       /api/v1/user/updateUserProfile [put]
+func (userApi *UserApi) UpdateUserProfile(c *gin.Context) {
+	var req user.UpdateUserProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.Result(c, common.INVALID_PARAMS)
 		return
@@ -148,7 +148,7 @@ func (userApi *UserApi) UpdateUserInfo(c *gin.Context) {
 	}
 	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 
-	data, err := userService.UpdateUserInfo(req, userId)
+	data, err := userService.UpdateUserProfile(req, userId)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {

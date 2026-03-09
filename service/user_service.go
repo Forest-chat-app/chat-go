@@ -262,8 +262,8 @@ func (s *UserService) GetUserInfo(userId string) (map[string]interface{}, error)
 	return data, nil
 }
 
-// UpdateUserInfo 更新用户信息
-func (s *UserService) UpdateUserInfo(req user.UpdateUserInfoRequest, userId string) (map[string]interface{}, error) {
+// UpdateUserProfile 更新用户信息
+func (s *UserService) UpdateUserProfile(req user.UpdateUserProfileRequest, userId string) (map[string]interface{}, error) {
 	// 1、开启mysql事务
 	tx := global.CHAT_MYSQL.Begin()
 	if tx.Error != nil {
@@ -301,9 +301,6 @@ func (s *UserService) UpdateUserInfo(req user.UpdateUserInfoRequest, userId stri
 	}
 	if req.Nickname != "" {
 		updates["nickname"] = req.Nickname
-	}
-	if req.Avatar != "" {
-		updates["avatar"] = req.Avatar
 	}
 	if len(updates) == 0 {
 		return nil, nil
