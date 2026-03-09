@@ -140,7 +140,7 @@ func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId st
 			}, nil
 		}
 
-		// 构建 Elasticsearch 查询
+		// 构建 Elasticsearch 查询，使用wildcard实现精准的子串匹配
 		query := map[string]interface{}{
 			"query": map[string]interface{}{
 				"bool": map[string]interface{}{
@@ -151,8 +151,11 @@ func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId st
 							},
 						},
 						{
-							"match": map[string]interface{}{
-								"content.text": req.Content,
+							"wildcard": map[string]interface{}{
+								"content.text.keyword": map[string]interface{}{
+									"value":            "*" + req.Content + "*",
+									"case_insensitive": true,
+								},
 							},
 						},
 						{
