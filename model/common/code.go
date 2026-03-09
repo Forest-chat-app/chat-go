@@ -29,7 +29,7 @@ var (
 	ROOM_NOT_FOUND = ResponseCode{Code: 431, Msg: "房间不存在"}
 
 	// 令牌相关：600-630
-	REFRESH_TOKEN_INVALID = ResponseCode{Code: 431, Msg: "无效的刷新令牌"}
-	REFRESH_TOKEN_REVOKED = ResponseCode{Code: 432, Msg: "刷新令牌已撤销"}
-	GENERATE_TOKEN_ERROR  = ResponseCode{Code: 433, Msg: "生成token失败"}
+	REFRESH_TOKEN_INVALID = ResponseCode{Code: 601, Msg: "无效的刷新令牌"}
+	REFRESH_TOKEN_REVOKED = ResponseCode{Code: 602, Msg: "刷新令牌已撤销"}
+	GENERATE_TOKEN_ERROR  = ResponseCode{Code: 603, Msg: "生成token失败"}
 )

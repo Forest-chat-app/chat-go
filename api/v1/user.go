@@ -175,14 +175,7 @@ func (userApi *UserApi) UpdateUserPassword(c *gin.Context) {
 		return
 	}
 
-	claims, exists := c.Get("claims")
-	if !exists {
-		common.Result(c, common.USER_NOT_FOUND)
-		return
-	}
-	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
-
-	if err := userService.UpdateUserPassword(req, userId, c); err != nil {
+	if err := userService.UpdateUserPassword(req, c); err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
 			common.Result(c, serviceErr.GetResponseCode())
@@ -201,14 +194,7 @@ func (userApi *UserApi) UpdateUserPassword(c *gin.Context) {
 // @Success      200      {object}  common.Response
 // @Router       /api/v1/user/logout [post]
 func (userApi *UserApi) Logout(c *gin.Context) {
-	claims, exists := c.Get("claims")
-	if !exists {
-		common.Result(c, common.USER_NOT_FOUND)
-		return
-	}
-	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
-
-	if err := userService.Logout(userId, c); err != nil {
+	if err := userService.Logout(c); err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
 			common.Result(c, serviceErr.GetResponseCode())

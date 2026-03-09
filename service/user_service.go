@@ -320,12 +320,38 @@ func (s *UserService) UpdateUserInfo(req user.UpdateUserInfoRequest, userId stri
 }
 
 // UpdateUserPassword 更新用户密码
-func (s *UserService) UpdateUserPassword(req user.UpdateUserPasswordRequest, userId string, c *gin.Context) error {
-	queryUser, err := utils.GetUserByID(userId)
+func (s *UserService) UpdateUserPassword(req user.UpdateUserPasswordRequest, c *gin.Context) error {
+	// 1、检查refresh_token
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		// 如果 Cookie 不存在或解析失败 (例如客户端没有发送，或者 Cookie 已过期)
+		if errors.Is(err, http.ErrNoCookie) {
+			global.CHAT_LOG.Warn("RefreshToken: Refresh token cookie not found.")
+			return common.NewServiceError(common.REFRESH_TOKEN_INVALID)
+		}
+		// 其他获取 Cookie 的错误
+		global.CHAT_LOG.Error("RefreshToken: 获取 refresh token cookie 失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+	refreshClaims := &utils.RefreshToken{}
+	_, err = jwt.ParseWithClaims(refreshToken, refreshClaims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(global.CHAT_CONFIG.JWT.Secret), nil
+	})
+
+	// 1.1 检查令牌是否被撤销
+	isTokenExist, err := utils.IsTokenExist(refreshClaims.UserID, refreshClaims.Platform)
+	if err != nil {
+		return common.NewServiceError(common.ERROR)
+	}
+	if !isTokenExist {
+		return common.NewServiceError(common.REFRESH_TOKEN_REVOKED)
+	}
+
+	// 2、获取user比对密码
+	queryUser, err := utils.GetUserByID(refreshClaims.UserID)
 	if err != nil {
 		return err
 	}
-
 	match, err := utils.CompareHashAndPassword(queryUser.Password, req.OldPassword)
 	if err != nil {
 		global.CHAT_LOG.Error("UpdateUserPassword-->比对密码出错", "err", err)
@@ -334,14 +360,14 @@ func (s *UserService) UpdateUserPassword(req user.UpdateUserPasswordRequest, use
 	if !match {
 		return common.NewServiceError(common.PASSWORD_INVALID)
 	}
-
+	// 2.1 加密新密码
 	hashedPassword, err := utils.GenerateFromPassword(req.NewPassword)
 	if err != nil || hashedPassword == "" {
 		global.CHAT_LOG.Error("UpdateUserPassword-->加密新密码出错", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
-
-	if err := global.CHAT_MYSQL.Model(&mysql.User{}).Where("id = ?", userId).
+	// 2.2 更新密码
+	if err := global.CHAT_MYSQL.Model(&mysql.User{}).Where("id = ?", queryUser.ID).
 		Updates(map[string]interface{}{
 			"password":   hashedPassword,
 			"updated_at": utils.GetUTCMillisTimestamp(),
@@ -350,11 +376,11 @@ func (s *UserService) UpdateUserPassword(req user.UpdateUserPasswordRequest, use
 		return common.NewServiceError(common.ERROR)
 	}
 
-	return s.Logout(userId, c)
+	return s.Logout(c)
 }
 
 // Logout 退出登录
-func (s *UserService) Logout(userId string, c *gin.Context) error {
+func (s *UserService) Logout(c *gin.Context) error {
 	// 1、获取refresh_token
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
@@ -374,10 +400,10 @@ func (s *UserService) Logout(userId string, c *gin.Context) error {
 
 	// 2、从WebSocket连接池移除该用户所有连接
 	manager := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
-	manager.UserLogoutByUserId(userId)
+	manager.UserLogoutByUserId(refreshClaims.UserID)
 
 	// 3、撤销该用户token
-	if err := utils.RevokeToken(userId, refreshClaims.Platform); err != nil {
+	if err := utils.RevokeToken(refreshClaims.UserID, refreshClaims.Platform); err != nil {
 		global.CHAT_LOG.Error("Logout-->撤销token失败", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
