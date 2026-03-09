@@ -1,7 +1,8 @@
 package router
 
 import (
-	"chat-server/api/v1"
+	v1 "chat-server/api/v1"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,5 +15,6 @@ func (s *ChatRouter) InitChatRouter(apiV1 *gin.RouterGroup) {
 	{
 		chatGroup.GET("/webSocketHandler", v1.ApiGroupApp.WebSocketHandler)
 		chatGroup.GET("/getHistoryMsg", v1.ApiGroupApp.GetHistoryMsg)
+		chatGroup.GET("/searchChat", v1.ApiGroupApp.SearchChat)
 	}
 }

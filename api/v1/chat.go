@@ -7,10 +7,11 @@ import (
 	"chat-server/model/request/chat"
 	"chat-server/utils"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type ChatApi struct{}
@@ -96,6 +97,43 @@ func (chatApi *ChatApi) GetHistoryMsg(c *gin.Context) {
 		return
 	}
 	data, err := chatService.GetHistoryMsg(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
+// SearchChat 搜索聊天记录
+// @Summary 搜索聊天记录
+// @Description 搜索聊天记录
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param content query string true "内容"
+// @Param type query string true "类型"
+// @Security BearerAuth
+// @Success 200 {object} common.Response "搜索聊天记录成功"
+// @Router /api/v1/chat/searchChat [get]
+func (chatApi *ChatApi) SearchChat(c *gin.Context) {
+	// 1、获取用户ID
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
+
+	// 2、校验参数
+	req := chat.SearchChatRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	data, err := chatService.SearchChat(req, userId)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
