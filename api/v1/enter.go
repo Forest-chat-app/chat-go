@@ -9,6 +9,7 @@ type ApiGroup struct {
 	ChatApi
 	TokenApi
 	RoomApi
+	CdnApi
 }
 
 var (
@@ -16,4 +17,5 @@ var (
 	userService  = service.ServiceGroupApp.UserService
 	tokenService = service.ServiceGroupApp.TokenService
 	roomService  = service.ServiceGroupApp.RoomService
+	cdnService   = service.ServiceGroupApp.CdnService
 )

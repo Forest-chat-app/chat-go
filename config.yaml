@@ -83,5 +83,18 @@ jwt:
   user_tokens_time: 30 # 30天
   issuer: "chat-server"           # 签发人
 
-
+# CDN与OSS配置
+cdn:
+  access_key_id: "xxx"       # 替换为你的RAM用户AK
+  access_key_secret: "xxx" # 替换为你的RAM用户SK
+  region: "cn-hangzhou"                          # 你的OSS地域
+  role_arn: "acs:ram::1541987419050960:role/ossfullaccess"  # 关键：STS角色ARN
+  domain: "http://oss.muwu.online"
+  private_key: "muwu-master"
+  expire_duration: 360000         # 签名100小时有效(秒)
+  session_name: "ChatServerSession"
+  bucket_name: "muwu-chat"              # 你的Bucket名称
+  oss_host: "muwu-chat.oss-cn-hangzhou.aliyuncs.com"
+  upload_dir: "muwu-chat/"                 # 限制上传目录
+  token_expire: 3600                             # 签名一小时有效
 

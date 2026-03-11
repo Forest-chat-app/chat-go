@@ -44,6 +44,11 @@ func Initialize(appCtx context.Context, appCancel context.CancelFunc, wg *sync.W
 		return fmt.Errorf("初始化数据库结构失败: %w", err)
 	}
 
+	// 初始化CDN配置
+	if err := InitCdn(); err != nil {
+		return fmt.Errorf("初始化 CDN 失败: %w", err)
+	}
+
 	// 启动数据同步服务 (或其他后台服务)
 	if len(global.CHAT_CONFIG.MongoEsSync) == 0 {
 		slog.Warn("未配置任何 MongoDB 到 Elasticsearch 的同步对，跳过启动数据同步服务。")

@@ -24,6 +24,7 @@ var (
 	USER_ACCOUNT_DUPLICATE = ResponseCode{Code: 410, Msg: "该账号已被使用"}
 	EMAIL_DUPLICATE        = ResponseCode{Code: 411, Msg: "该邮箱已被使用"}
 	PLATFORM_LOGGED_IN     = ResponseCode{Code: 412, Msg: "该平台已登录"}
+	NOT_ALLOWED_DIR        = ResponseCode{Code: 413, Msg: "不支持的上传目录"}
 
 	// 房间相关:431-460
 	ROOM_NOT_FOUND = ResponseCode{Code: 431, Msg: "房间不存在"}

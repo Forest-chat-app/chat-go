@@ -1,4 +1,4 @@
-package response
+package room
 
 import "chat-server/model/mysql"
 

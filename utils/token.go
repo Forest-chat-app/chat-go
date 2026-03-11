@@ -123,7 +123,7 @@ func GetUserByID(userID string) (*mysql.User, error) {
 	if err != nil {
 		return nil, common.NewServiceError(common.USER_ID_NOT_FOUND)
 	}
-
+	queryUser.Avatar = GenerateCdnUrl(queryUser.Avatar)
 	return &queryUser, nil
 }
 

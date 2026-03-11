@@ -69,7 +69,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		Password:    hashedPassword,
 		Nickname:    constant.Nickname,
 		Email:       constant.Email,
-		Avatar:      constant.Avatar,
+		Avatar:      constant.UserAvatar,
 		CreatedAt:   utils.GetUTCMillisTimestamp(),
 		UpdatedAt:   utils.GetUTCMillisTimestamp(),
 	}
@@ -252,6 +252,9 @@ func (s *UserService) GetUserInfo(userId string) (map[string]interface{}, error)
 	var rooms []mysql.Room
 	if len(roomIDs) > 0 {
 		tx.Where("id IN ?", roomIDs).Find(&rooms)
+	}
+	for i := range rooms {
+		rooms[i].Avatar = utils.GenerateCdnUrl(rooms[i].Avatar)
 	}
 	// 4、返回数据
 	data := map[string]interface{}{

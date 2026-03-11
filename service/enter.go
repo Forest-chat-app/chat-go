@@ -8,4 +8,5 @@ type ServiceGroup struct {
 	MongoToEsSync
 	TokenService
 	RoomService
+	CdnService
 }

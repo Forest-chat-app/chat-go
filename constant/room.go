@@ -7,6 +7,7 @@ const (
 	StatusPublicName  = "公开"
 	StatusPrivateName = "私密"
 	StatusDeleteName  = "已删除"
+	RoomAvatar        = "/avatar/defaultRoomAvatar.jpg"
 )
 
 var StatusMap = map[int16]bool{

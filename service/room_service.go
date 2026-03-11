@@ -7,7 +7,6 @@ import (
 	"chat-server/model/common"
 	"chat-server/model/mysql"
 	"chat-server/model/request/room"
-	"chat-server/model/response"
 	"chat-server/utils"
 	"fmt"
 	"sort"
@@ -24,9 +23,6 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	}
 	if !constant.StatusMap[req.Status] {
 		return nil, common.NewServiceError(common.INVALID_PARAMS)
-	}
-	if !utils.VerifyAvatar(req.Avatar) {
-		return nil, common.NewServiceError(common.AVATAR_INVALID)
 	}
 	// 2、开启mysql事务
 	tx := global.CHAT_MYSQL.Begin()
@@ -55,7 +51,7 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 		Introduction: req.Introduction,
 		Tag:          req.Tag,
 		Status:       req.Status,
-		Avatar:       req.Avatar,
+		Avatar:       constant.RoomAvatar,
 		CreatedAt:    utils.GetUTCMillisTimestamp(),
 		UpdatedAt:    utils.GetUTCMillisTimestamp(),
 	}
@@ -117,6 +113,10 @@ func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interfa
 		}
 		tx.Distinct().Find(&rooms)
 	}
+	// 3.1 获取头像url
+	for i := range rooms {
+		rooms[i].Avatar = utils.GenerateCdnUrl(rooms[i].Avatar)
+	}
 
 	// 4、返回数据
 	data := map[string]interface{}{
@@ -137,11 +137,11 @@ func (r *RoomService) HotRoom() (map[string]interface{}, error) {
 	onlineCounts := manager.GetRoomOnlineCounts()
 
 	// 3、构建带在线人数的房间列表
-	roomsWithCount := make([]response.RoomWithOnlineCount, len(rooms))
-	for i, room := range rooms {
-		roomsWithCount[i] = response.RoomWithOnlineCount{
-			Room:        room,
-			OnlineCount: onlineCounts[room.ID],
+	roomsWithCount := make([]room.RoomWithOnlineCount, len(rooms))
+	for i, r := range rooms {
+		roomsWithCount[i] = room.RoomWithOnlineCount{
+			Room:        r,
+			OnlineCount: onlineCounts[r.ID],
 		}
 	}
 
@@ -153,6 +153,9 @@ func (r *RoomService) HotRoom() (map[string]interface{}, error) {
 	// 5、取前50个
 	if len(roomsWithCount) > 50 {
 		roomsWithCount = roomsWithCount[:50]
+	}
+	for i := range roomsWithCount {
+		roomsWithCount[i].Avatar = utils.GenerateCdnUrl(roomsWithCount[i].Avatar)
 	}
 	data := map[string]interface{}{
 		"rooms": roomsWithCount,

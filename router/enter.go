@@ -11,6 +11,7 @@ type RouterGroup struct {
 	ChatRouter
 	TokenRouter
 	RoomRouter
+	CdnRouter
 }
 
 var (
@@ -18,4 +19,5 @@ var (
 	chatApi  = v1.ApiGroupApp.ChatApi
 	tokenApi = v1.ApiGroupApp.TokenApi
 	roomApi  = v1.ApiGroupApp.RoomApi
+	cdnApi   = v1.ApiGroupApp.CdnApi
 )

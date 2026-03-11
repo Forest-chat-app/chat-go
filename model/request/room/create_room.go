@@ -5,5 +5,4 @@ type CreateRoomRequest struct {
 	Introduction string `json:"introduction" binding:"required"`
 	Tag          string `json:"tag" binding:"required"`
 	Status       int16  `json:"status" binding:"required"`
-	Avatar       string `json:"avatar" gorm:"type:varchar(255)"`
 }
