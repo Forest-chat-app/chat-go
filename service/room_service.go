@@ -373,3 +373,34 @@ func (r *RoomService) LeavePreview(req room.LeavePreviewRequest, userId string) 
 	// 1、退出房间
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).LeaveRoom(req.RoomId, userId)
 }
+
+// UpdateRoomAvatar 更新房间头像
+func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest) error {
+	// 1、开启Mysql事务
+	tx := global.CHAT_MYSQL.Begin()
+	if tx.Error != nil {
+		global.CHAT_LOG.Error("UpdateRoomAvatar-->开启Mysql事务失败", "err", tx.Error.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			global.CHAT_LOG.Error("UpdateRoomAvatar-->捕捉到panic", "err", r)
+			tx.Rollback()
+		} else if tx.Error != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	// 2、更新房间头像
+	if err := tx.Model(&mysql.Room{}).Where("id = ?", req.RoomId).Updates(map[string]interface{}{
+		"avatar":     req.Avatar,
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}).Error; err != nil {
+		tx.Error = err
+		global.CHAT_LOG.Error("UpdateRoomAvatar-->更新用户头像失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+	return nil
+}

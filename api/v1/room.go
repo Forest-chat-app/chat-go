@@ -308,3 +308,32 @@ func (r *RoomApi) LeavePreview(c *gin.Context) {
 	roomService.LeavePreview(req, userId)
 	common.Result(c, common.SUCCESS)
 }
+
+// UpdateRoomAvatar godoc
+// @Summary      更新房间头像
+// @Description  更新房间头像
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param        request  body      user.UpdateRoomAvatarRequest  true  "房间头像"
+// @Success      200      {object}  common.Response
+// @Router       /api/v1/user/updateRoomAvatar [put]
+func (r *RoomApi) UpdateRoomAvatar(c *gin.Context) {
+	// 1、绑定请求参数
+	var req room.UpdateRoomAvatarRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 3、更新用户头像
+	err := roomService.UpdateRoomAvatar(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}

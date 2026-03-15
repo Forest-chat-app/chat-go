@@ -20,6 +20,7 @@ func (r *RoomRouter) InitRoomRouter(apiV1 *gin.RouterGroup) {
 		roomGroup.DELETE("/deleteRoomMembers", v1.ApiGroupApp.DeleteRoomMembers)
 		roomGroup.GET("/getRoomMembers", v1.ApiGroupApp.GetRoomMembers)
 		roomGroup.DELETE("/leavePreview", v1.ApiGroupApp.LeavePreview)
+		roomGroup.PUT("/updateRoomAvatar", v1.ApiGroupApp.UpdateRoomAvatar)
 	}
 
 }
