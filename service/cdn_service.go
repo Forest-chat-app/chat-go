@@ -5,6 +5,7 @@ import (
 	"chat-server/global"
 	"chat-server/model/common"
 	"chat-server/model/request/cdn"
+	"chat-server/utils"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -90,5 +91,12 @@ func (cdnService *CdnService) GetPostSignature(subDir string) (cdn.GetPostSignat
 		Signature:        signature,
 		Host:             cfg.OssHost,
 		Dir:              targetDir,
+	}, nil
+}
+
+// GetCdnUrl 获取CDN鉴权URL
+func (cdnService *CdnService) GetCdnUrl(url string) (cdn.GetCdnUrlResponse, error) {
+	return cdn.GetCdnUrlResponse{
+		Url: utils.GenerateCdnUrl(url),
 	}, nil
 }

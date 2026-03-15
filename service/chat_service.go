@@ -2,10 +2,12 @@ package service
 
 import (
 	"bytes"
+	"chat-server/constant"
 	"chat-server/global"
 	"chat-server/model"
 	"chat-server/model/common"
 	"chat-server/model/request/chat"
+	"chat-server/utils"
 	"context"
 	"encoding/json"
 	"io"
@@ -16,7 +18,7 @@ import (
 type ChatService struct{}
 
 func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.HistoryMsgResponse, error) {
-	// 构建 Elasticsearch 查询
+	// 1、构建 Elasticsearch 查询
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]interface{}{
@@ -34,14 +36,14 @@ func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.
 		"size": req.PageSize,                     // 每页大小
 	}
 
-	// 将查询转换为 JSON
+	// 1.1 将查询转换为 JSON
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		global.CHAT_LOG.Error("构建 ES 查询失败", "err", err)
 		return chat.HistoryMsgResponse{}, common.NewServiceError(common.ERROR)
 	}
 
-	// 执行 Elasticsearch 搜索
+	// 1.2 执行 Elasticsearch 搜索
 	res, err := global.CHAT_ES.Search(
 		global.CHAT_ES.Search.WithContext(context.Background()),
 		global.CHAT_ES.Search.WithIndex("user_messages"),
@@ -53,14 +55,13 @@ func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.
 		return chat.HistoryMsgResponse{}, common.NewServiceError(common.ERROR)
 	}
 	defer res.Body.Close()
-
 	if res.IsError() {
 		bodyBytes, _ := io.ReadAll(res.Body)
 		global.CHAT_LOG.Error("ES 搜索返回错误", "status", res.Status(), "response", string(bodyBytes))
 		return chat.HistoryMsgResponse{}, common.NewServiceError(common.ERROR)
 	}
 
-	// 解析响应
+	// 2、解析响应
 	var esResponse struct {
 		Hits struct {
 			Hits []struct {
@@ -69,13 +70,12 @@ func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.
 			} `json:"hits"`
 		} `json:"hits"`
 	}
-
 	if err := json.NewDecoder(res.Body).Decode(&esResponse); err != nil {
 		global.CHAT_LOG.Error("解析 ES 响应失败", "err", err)
 		return chat.HistoryMsgResponse{}, common.NewServiceError(common.ERROR)
 	}
 
-	// 将 ES 结果转换为 UserMessages 结构
+	// 2.2 将 ES 结果转换为 UserMessages 结构
 	messages := make([]model.UserMessages, 0, len(esResponse.Hits.Hits))
 	for _, hit := range esResponse.Hits.Hits {
 		// 将 _id 添加回 source
@@ -93,10 +93,14 @@ func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.
 			global.CHAT_LOG.Error("解析消息失败", "err", err, "id", hit.ID)
 			continue
 		}
+		if msg.Type != constant.MessageTypeText {
+			GenerateUrl(&msg)
+		}
 
 		messages = append(messages, msg)
 	}
 
+	// 3、返回结果
 	return chat.HistoryMsgResponse{
 		Messages: messages,
 	}, nil
@@ -235,6 +239,9 @@ func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId st
 				global.CHAT_LOG.Error("解析消息失败", "err", err, "id", hit.ID)
 				continue
 			}
+			if msg.Type != constant.MessageTypeText {
+				GenerateUrl(&msg)
+			}
 
 			messages = append(messages, msg)
 		}
@@ -245,4 +252,17 @@ func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId st
 	}
 
 	return chat.SearchChatResponse{}, common.NewServiceError(common.INVALID_PARAMS)
+}
+
+func GenerateUrl(msg *model.UserMessages) {
+	switch msg.Type {
+	case constant.MessageTypeImage:
+		msg.Content.Image.URL = utils.GenerateCdnUrl(msg.Content.Image.URL)
+	case constant.MessageTypeVoice:
+		msg.Content.Voice.URL = utils.GenerateCdnUrl(msg.Content.Voice.URL)
+	case constant.MessageTypeVideo:
+		msg.Content.Video.URL = utils.GenerateCdnUrl(msg.Content.Video.URL)
+	case constant.MessageTypeFile:
+		msg.Content.File.URL = utils.GenerateCdnUrl(msg.Content.File.URL)
+	}
 }

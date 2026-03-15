@@ -37,3 +37,33 @@ func (cdnApi *CdnApi) GetPostSignature(c *gin.Context) {
 	}
 	common.Result(c, common.SUCCESS, data)
 }
+
+// GetCdnUrl 获取CDN鉴权URL
+// @Summary 获取CDN鉴权URL
+// @Description 获取CDN鉴权URL
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} common.Response "获取CDN鉴权URL成功"
+// @Router /api/v1/cdn/getCdnUrl [get]
+func (cdnApi *CdnApi) GetCdnUrl(c *gin.Context) {
+	// 1、绑定请求参数
+	var req cdn.GetCdnUrlRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、处理业务
+	data, err := cdnService.GetCdnUrl(req.Url)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+
+}
