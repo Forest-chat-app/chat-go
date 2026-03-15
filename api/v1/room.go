@@ -211,6 +211,36 @@ func (r *RoomApi) PreviewRoom(c *gin.Context) {
 
 }
 
+// GetRoomMembers 获取房间成员列表
+// @Summary 获取房间成员列表
+// @Description 获取房间成员列表
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param room_id query string true "房间ID"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/getRoomMembers [get]
+func (r *RoomApi) GetRoomMembers(c *gin.Context) {
+	// 1、校验参数
+	req := room.GetRoomMembersRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、处理业务
+	data, err := roomService.GetRoomMembers(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
 // LeavePreview 预览聊天室
 // @Summary 退出预览聊天室
 // @Description 预览聊天室

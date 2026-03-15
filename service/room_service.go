@@ -274,6 +274,49 @@ func (r *RoomService) QuitRoom(req room.QuitRoomRequest, userId string) (map[str
 	return data, nil
 }
 
+// GetRoomMembers 获取房间成员列表
+func (r *RoomService) GetRoomMembers(req room.GetRoomMembersRequest) (map[string]interface{}, error) {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) {
+		return nil, common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	// 2、查询房间是否存在
+	tx := global.CHAT_MYSQL
+	var queryRoom mysql.Room
+	tx.First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.ID == "" {
+		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+
+	// 3、查询房间成员
+	var roomMembers []mysql.RoomMembers
+	tx.Where("room_id = ?", req.RoomId).Find(&roomMembers)
+
+	// 4、获取每个成员的用户信息
+	members := make([]room.RoomMember, 0, len(roomMembers))
+	for _, member := range roomMembers {
+		var user mysql.User
+		tx.Select("id, nickname, avatar, email").First(&user, "id = ?", member.UserID)
+		if user.ID == "" {
+			continue
+		}
+		members = append(members, room.RoomMember{
+			ID:       user.ID,
+			Nickname: user.Nickname,
+			Avatar:   utils.GenerateCdnUrl(user.Avatar),
+			Email:    user.Email,
+			JoinedAt: member.JoinedAt,
+		})
+	}
+
+	// 5、返回数据
+	data := map[string]interface{}{
+		"members": members,
+	}
+	return data, nil
+}
+
 // PreviewRoom 预览房间
 func (r *RoomService) PreviewRoom(req room.PreviewRoomRequest, userId string) {
 	// 1、加入房间
