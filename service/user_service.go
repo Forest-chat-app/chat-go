@@ -319,6 +319,36 @@ func (s *UserService) UpdateUserProfile(req user.UpdateUserProfileRequest, userI
 	return nil, nil
 }
 
+// UpdateUserAvatar 更新用户头像
+func (s *UserService) UpdateUserAvatar(req user.UpdateUserAvatarRequest, userId string) error {
+	// 1、开启Mysql事务
+	tx := global.CHAT_MYSQL.Begin()
+	if tx.Error != nil {
+		global.CHAT_LOG.Error("UpdateUserAvatar-->开启Mysql事务失败", "err", tx.Error.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			global.CHAT_LOG.Error("UpdateUserAvatar-->捕捉到panic", "err", r)
+			tx.Rollback()
+		} else if tx.Error != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+	// 2、更新用户头像
+	if err := tx.Model(&mysql.User{}).Where("id = ?", userId).Updates(map[string]interface{}{
+		"avatar":     req.Avatar,
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}).Error; err != nil {
+		tx.Error = err
+		global.CHAT_LOG.Error("UpdateUserAvatar-->更新用户头像失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+	return nil
+}
+
 // UpdateUserPassword 更新用户密码
 func (s *UserService) UpdateUserPassword(req user.UpdateUserPasswordRequest, c *gin.Context) error {
 	// 1、检查refresh_token

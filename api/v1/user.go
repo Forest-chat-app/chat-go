@@ -159,6 +159,43 @@ func (userApi *UserApi) UpdateUserProfile(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 }
 
+// UpdateUserAvatar godoc
+// @Summary      更新用户头像
+// @Description  更新用户头像
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param        request  body      user.UpdateUserAvatarRequest  true  "用户头像"
+// @Success      200      {object}  common.Response
+// @Router       /api/v1/user/updateUserAvatar [put]
+func (userApi *UserApi) UpdateUserAvatar(c *gin.Context) {
+	// 1、绑定请求参数
+	var req user.UpdateUserAvatarRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取用户ID
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
+
+	// 3、更新用户头像
+	err := userService.UpdateUserAvatar(req, userId)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
+
 // UpdateUserPassword godoc
 // @Summary      更新用户密码
 // @Description  验证旧密码后更新为新密码，成功后自动退出登录

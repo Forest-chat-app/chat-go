@@ -15,6 +15,7 @@ func (s *UserRouter) InitUserRouter(apiV1 *gin.RouterGroup) {
 		userGroup.POST("/loginAccount", v1.ApiGroupApp.LoginAccount)
 		userGroup.GET("/getUserInfo", v1.ApiGroupApp.GetUserInfo)
 		userGroup.PUT("/updateUserProfile", v1.ApiGroupApp.UpdateUserProfile)
+		userGroup.PUT("/updateUserAvatar", v1.ApiGroupApp.UpdateUserAvatar)
 		userGroup.PUT("/updateUserPassword", v1.ApiGroupApp.UpdateUserPassword)
 		userGroup.POST("/logout", v1.ApiGroupApp.Logout)
 		userGroup.GET("/test", v1.ApiGroupApp.Test)
