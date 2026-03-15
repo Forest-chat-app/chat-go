@@ -10,7 +10,7 @@ type RoomWithOnlineCount struct {
 
 // RoomMember 房间成员信息
 type RoomMember struct {
-	ID       string `json:"id"`
+	UserID   string `json:"user_id"`
 	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
 	Email    string `json:"email"`

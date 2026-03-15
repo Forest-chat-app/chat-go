@@ -17,6 +17,7 @@ func (r *RoomRouter) InitRoomRouter(apiV1 *gin.RouterGroup) {
 		roomGroup.POST("/joinRoom", v1.ApiGroupApp.JoinRoom)
 		roomGroup.DELETE("/quitRoom", v1.ApiGroupApp.QuitRoom)
 		roomGroup.GET("/previewRoom", v1.ApiGroupApp.PreviewRoom)
+		roomGroup.DELETE("/deleteRoomMembers", v1.ApiGroupApp.DeleteRoomMembers)
 		roomGroup.GET("/getRoomMembers", v1.ApiGroupApp.GetRoomMembers)
 		roomGroup.DELETE("/leavePreview", v1.ApiGroupApp.LeavePreview)
 	}

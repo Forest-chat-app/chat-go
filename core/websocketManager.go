@@ -261,7 +261,7 @@ func (client *Client) ReadPump() {
 			wsMessage.Type = constant.MessageTypeText
 			wsMessage.Content = map[string]interface{}{"text": "解析错误"}
 		}
-		// 解析后json后，设置基本信息
+		// 解析json后，设置基本信息
 		wsMessage.SenderId = client.UserId
 		wsMessage.CreatedAt = utils.GetUTCMillisTimestamp()
 		// 发送消息

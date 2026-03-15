@@ -213,11 +213,12 @@ func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[str
 	tx.Create(&joinRoom)
 
 	// 5、发送加入消息
+	queryUser, _ := utils.GetUserByID(userId)
 	joinMsg := &common.WebSocketMessage{
 		Type:      constant.MessageTypeJoin,
 		RoomId:    req.RoomId,
 		SenderId:  userId,
-		Content:   map[string]interface{}{constant.MessageTypeJoin: constant.JoinMessageContent, constant.MessageTypeLeave: nil, constant.MessageTypeSystem: nil},
+		Content:   map[string]interface{}{"text": queryUser.Nickname + constant.JoinMessageContent},
 		CreatedAt: utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, joinMsg)
@@ -263,15 +264,59 @@ func (r *RoomService) QuitRoom(req room.QuitRoomRequest, userId string) (map[str
 	if queryRoomMembers.ID == "" {
 		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
 	}
-
-	// 5、退出房间
 	tx.Delete(&queryRoomMembers)
 
-	// 6、返回数据
+	// 5、断开连接
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).LeaveRoom(queryRoom.ID, userId)
+
+	// 6、发送退出消息
+	leaveMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeLeave,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, leaveMsg)
+
+	// 7、返回数据
 	data := map[string]interface{}{
 		"roomID": queryRoom.ID,
 	}
 	return data, nil
+}
+
+// DeleteRoomMembers 移除房间成员
+func (r *RoomService) DeleteRoomMembers(req room.DeleteRoomMembersRequest, userId string) error {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) || len(req.UserIds) == 0 {
+		return common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	tx := global.CHAT_MYSQL
+
+	// 2、多表联查获取当前用户在该房间的 role_id，判断是否有权限
+	var roleId int16
+	err := tx.Table("room_members rm").
+		Select("r.role_id").
+		Joins("JOIN role r ON r.id = rm.user_role").
+		Where("rm.user_id = ? AND rm.room_id = ?", userId, req.RoomId).
+		Scan(&roleId).Error
+	if err != nil || roleId == 0 {
+		return common.NewServiceError(common.ROOM_PERMISSION_DENY)
+	}
+	if roleId != constant.RoleGroupOwner && roleId != constant.RoleGroupAdmin {
+		return common.NewServiceError(common.ROOM_PERMISSION_DENY)
+	}
+
+	// 3、批量删除目标用户在该房间的成员记录
+	if err := tx.Where("room_id = ? AND user_id IN ?", req.RoomId, req.UserIds).
+		Delete(&mysql.RoomMembers{}).Error; err != nil {
+		global.CHAT_LOG.Error("DeleteRoomMembers-->删除成员失败", "err", err.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+
+	return nil
 }
 
 // GetRoomMembers 获取房间成员列表
@@ -302,7 +347,7 @@ func (r *RoomService) GetRoomMembers(req room.GetRoomMembersRequest) (map[string
 			continue
 		}
 		members = append(members, room.RoomMember{
-			ID:       user.ID,
+			UserID:   user.ID,
 			Nickname: user.Nickname,
 			Avatar:   utils.GenerateCdnUrl(user.Avatar),
 			Email:    user.Email,

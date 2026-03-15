@@ -133,7 +133,40 @@ func (chatApi *ChatApi) SearchChat(c *gin.Context) {
 		common.Result(c, common.INVALID_PARAMS)
 		return
 	}
+
+	// 3、处理业务
 	data, err := chatService.SearchChat(req, userId)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
+// GetRoomMsg 搜索具体房间聊天记录
+// @Summary 搜索具体房间聊天记录
+// @Description 搜索具体房间聊天记录
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param content query string true "内容"
+// @Param type query string true "类型"
+// @Security BearerAuth
+// @Success 200 {object} common.Response "搜索具体房间聊天记录成功"
+// @Router /api/v1/chat/getRoomMsg [get]
+func (chatApi *ChatApi) GetRoomMsg(c *gin.Context) {
+	// 1、校验参数
+	req := chat.GetRoomMsgReq{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、处理业务
+	data, err := chatService.GetRoomMsg(req)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {

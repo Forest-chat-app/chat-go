@@ -27,7 +27,8 @@ var (
 	NOT_ALLOWED_DIR        = ResponseCode{Code: 413, Msg: "不支持的上传目录"}
 
 	// 房间相关:431-460
-	ROOM_NOT_FOUND = ResponseCode{Code: 431, Msg: "房间不存在"}
+	ROOM_NOT_FOUND       = ResponseCode{Code: 431, Msg: "房间不存在"}
+	ROOM_PERMISSION_DENY = ResponseCode{Code: 432, Msg: "权限不足，无法执行该操作"}
 
 	// 令牌相关：600-630
 	REFRESH_TOKEN_INVALID = ResponseCode{Code: 601, Msg: "无效的刷新令牌"}

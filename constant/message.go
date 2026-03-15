@@ -13,8 +13,8 @@ const (
 	MessageTypeTyping  = "typing"  // 正在输入
 	MessageTypeReceipt = "receipt" // 已读回执
 
-	JoinMessageContent  = "用户已加入房间"
-	LeaveMessageContent = "用户已离开房间"
+	JoinMessageContent  = "已加入房间"
+	LeaveMessageContent = "已离开房间"
 )
 
 var UserMessageType = map[string]bool{
