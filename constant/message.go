@@ -1,15 +1,20 @@
 package constant
 
 const (
-	MessageTypeText       = "text"        // 文本消息
-	MessageTypeImage      = "image"       // 图片消息
-	MessageTypeFile       = "file"        // 文件消息
-	MessageTypeVoice      = "voice"       // 语音消息
-	MessageTypeVideo      = "video"       // 视频消息
-	MessageTypeReply      = "reply"       // 回复消息
+	// 用户
+	MessageTypeText  = "text"  // 文本消息
+	MessageTypeImage = "image" // 图片消息
+	MessageTypeFile  = "file"  // 文件消息
+	MessageTypeVoice = "voice" // 语音消息
+	MessageTypeVideo = "video" // 视频消息
+	MessageTypeReply = "reply" // 回复消息
+
+	// 系统
 	MessageTypeJoin       = "join"        // 加入房间
 	MessageTypeLeave      = "leave"       // 离开房间
 	MessageTypeRoomUpdate = "room_update" // 更新房间
+	MessageTypeDelMember  = "del_member"  // 移除成员
+	MessageTypeDelRoom    = "del_room"    // 删除房间
 	MessageTypeSystem     = "system"      // 系统消息
 
 	JoinMessageContent  = "已加入房间"
@@ -26,7 +31,9 @@ var UserMessageType = map[string]bool{
 }
 
 var SystemMessageType = map[string]bool{
-	MessageTypeJoin:   true,
-	MessageTypeLeave:  true,
-	MessageTypeSystem: true,
+	MessageTypeJoin:       true,
+	MessageTypeLeave:      true,
+	MessageTypeSystem:     true,
+	MessageTypeRoomUpdate: true,
+	MessageTypeDelMember:  true,
 }

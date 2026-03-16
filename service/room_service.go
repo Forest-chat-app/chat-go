@@ -274,7 +274,7 @@ func (r *RoomService) QuitRoom(req room.QuitRoomRequest, userId string) (map[str
 		Type:      constant.MessageTypeLeave,
 		RoomId:    req.RoomId,
 		SenderId:  userId,
-		Content:   map[string]interface{}{},
+		Content:   map[string]interface{}{"userId": userId},
 		CreatedAt: utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, leaveMsg)
@@ -315,6 +315,16 @@ func (r *RoomService) DeleteRoomMembers(req room.DeleteRoomMembersRequest, userI
 		global.CHAT_LOG.Error("DeleteRoomMembers-->删除成员失败", "err", err.Error())
 		return common.NewServiceError(common.ERROR)
 	}
+
+	// 4、发送移除消息
+	delMemberMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeDelMember,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{"userIds": req.UserIds},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, delMemberMsg)
 
 	return nil
 }
