@@ -1,17 +1,16 @@
 package constant
 
 const (
-	MessageTypeText    = "text"    // 文本消息
-	MessageTypeImage   = "image"   // 图片消息
-	MessageTypeFile    = "file"    // 文件消息
-	MessageTypeVoice   = "voice"   // 语音消息
-	MessageTypeVideo   = "video"   // 视频消息
-	MessageTypeReply   = "reply"   // 回复消息
-	MessageTypeJoin    = "join"    // 加入房间
-	MessageTypeLeave   = "leave"   // 离开房间
-	MessageTypeSystem  = "system"  // 系统消息
-	MessageTypeTyping  = "typing"  // 正在输入
-	MessageTypeReceipt = "receipt" // 已读回执
+	MessageTypeText       = "text"        // 文本消息
+	MessageTypeImage      = "image"       // 图片消息
+	MessageTypeFile       = "file"        // 文件消息
+	MessageTypeVoice      = "voice"       // 语音消息
+	MessageTypeVideo      = "video"       // 视频消息
+	MessageTypeReply      = "reply"       // 回复消息
+	MessageTypeJoin       = "join"        // 加入房间
+	MessageTypeLeave      = "leave"       // 离开房间
+	MessageTypeRoomUpdate = "room_update" // 更新房间
+	MessageTypeSystem     = "system"      // 系统消息
 
 	JoinMessageContent  = "已加入房间"
 	LeaveMessageContent = "已离开房间"

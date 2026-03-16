@@ -374,6 +374,60 @@ func (r *RoomService) LeavePreview(req room.LeavePreviewRequest, userId string) 
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).LeaveRoom(req.RoomId, userId)
 }
 
+// UpdateRoomInfo 更新房间信息
+func (r *RoomService) UpdateRoomInfo(req room.UpdateRoomInfoRequest, userId string) error {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) {
+		return common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	tx := global.CHAT_MYSQL
+
+	// 2、查询房间，验证是否是创建者
+	var queryRoom mysql.Room
+	tx.Select("creator_id").First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.CreatorID == "" {
+		return common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+	if queryRoom.CreatorID != userId {
+		return common.NewServiceError(common.ROOM_PERMISSION_DENY)
+	}
+
+	// 3、构造更新字段（只更新非空字段）
+	updates := map[string]interface{}{
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}
+	if utils.VerifyString(req.RoomName) {
+		updates["room_name"] = req.RoomName
+	}
+	if utils.VerifyString(req.Introduction) {
+		updates["introduction"] = req.Introduction
+	}
+	if utils.VerifyString(req.Tag) {
+		updates["tag"] = req.Tag
+	}
+	if req.Status != 0 {
+		updates["status"] = req.Status
+	}
+
+	if err := tx.Model(&mysql.Room{}).Where("id = ?", req.RoomId).Updates(updates).Error; err != nil {
+		global.CHAT_LOG.Error("UpdateRoomInfo-->更新房间信息失败", "err", err.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+
+	// 4、广播房间更新通知
+	updateRoomMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeRoomUpdate,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, updateRoomMsg)
+
+	return nil
+}
+
 // UpdateRoomAvatar 更新房间头像
 func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest) error {
 	// 1、开启Mysql事务

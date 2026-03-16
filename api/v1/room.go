@@ -309,6 +309,43 @@ func (r *RoomApi) LeavePreview(c *gin.Context) {
 	common.Result(c, common.SUCCESS)
 }
 
+// UpdateRoomInfo 更新房间信息
+// @Summary 更新房间信息
+// @Description 更新房间信息（仅创建者可操作）
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param request body room.UpdateRoomInfoRequest true "更新房间信息请求"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/updateRoomInfo [put]
+func (r *RoomApi) UpdateRoomInfo(c *gin.Context) {
+	// 1、校验参数
+	req := room.UpdateRoomInfoRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
+
+	// 3、处理业务
+	if err := roomService.UpdateRoomInfo(req, userId); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
+
 // UpdateRoomAvatar godoc
 // @Summary      更新房间头像
 // @Description  更新房间头像
