@@ -211,6 +211,43 @@ func (r *RoomApi) PreviewRoom(c *gin.Context) {
 
 }
 
+// DeleteRoom 解散房间
+// @Summary 解散房间
+// @Description 解散房间（仅创建者可操作）
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param request body room.DeleteRoomRequest true "解散房间请求"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/deleteRoom [delete]
+func (r *RoomApi) DeleteRoom(c *gin.Context) {
+	// 1、校验参数
+	req := room.DeleteRoomRequest{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
+
+	// 3、处理业务
+	if err := roomService.DeleteRoom(req, userId); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
+
 // DeleteRoomMembers 移除房间成员
 // @Summary 移除房间成员
 // @Description 移除房间成员（仅群主/群管理员可操作）

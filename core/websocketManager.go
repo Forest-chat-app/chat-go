@@ -74,20 +74,19 @@ func (manager *WebSocketManager) UserLogin(client *Client) {
 	// 2、查询用户所有roomId
 	var roomIds []string
 	tx.Model(&mysql.RoomMembers{}).Where("user_id = ?", client.UserId).Pluck("room_id", &roomIds)
-	if len(roomIds) == 0 {
-		return
-	}
 
 	// 3、将用户连接加入到各房间
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
-	for _, roomId := range roomIds {
-		// 3.1 判断房间是否存在，不存在则创建房间
-		if _, ok := manager.Rooms[roomId]; !ok {
-			manager.Rooms[roomId] = make(map[*Client]bool)
+	if len(roomIds) != 0 {
+		for _, roomId := range roomIds {
+			// 3.1 判断房间是否存在，不存在则创建房间
+			if _, ok := manager.Rooms[roomId]; !ok {
+				manager.Rooms[roomId] = make(map[*Client]bool)
+			}
+			// 3.2 添加客户端到该房间
+			manager.Rooms[roomId][client] = true
 		}
-		// 3.2 添加客户端到该房间
-		manager.Rooms[roomId][client] = true
 	}
 	// 3.3 保存客户端
 	manager.Clients[client.UserId] = append(manager.Clients[client.UserId], client)
@@ -154,6 +153,13 @@ func (manager *WebSocketManager) LeaveRoom(roomId string, userId string) {
 	if _, exist := clients[client[0]]; exist {
 		delete(manager.Rooms[roomId], client[0])
 	}
+	manager.mu.Unlock()
+}
+
+// DelRoom 删除房间（从内存中移除该房间）
+func (manager *WebSocketManager) DelRoom(roomId string) {
+	manager.mu.Lock()
+	delete(manager.Rooms, roomId)
 	manager.mu.Unlock()
 }
 

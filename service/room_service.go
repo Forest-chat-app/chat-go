@@ -384,6 +384,75 @@ func (r *RoomService) LeavePreview(req room.LeavePreviewRequest, userId string) 
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).LeaveRoom(req.RoomId, userId)
 }
 
+// DeleteRoom 解散房间
+func (r *RoomService) DeleteRoom(req room.DeleteRoomRequest, userId string) error {
+	// 1、校验参数
+	if !utils.VerifyString(req.RoomId) {
+		return common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	// 2、查询房间，验证是否是创建者
+	tx := global.CHAT_MYSQL
+	var queryRoom mysql.Room
+	tx.Select("id, creator_id").First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.ID == "" {
+		return common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+	if queryRoom.CreatorID != userId {
+		return common.NewServiceError(common.ROOM_PERMISSION_DENY)
+	}
+
+	// 3、开启事务
+	txDb := global.CHAT_MYSQL.Begin()
+	if txDb.Error != nil {
+		global.CHAT_LOG.Error("DeleteRoom-->开启Mysql事务失败", "err", txDb.Error.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			global.CHAT_LOG.Error("DeleteRoom-->捕捉到panic", "err", r)
+			txDb.Rollback()
+		} else if txDb.Error != nil {
+			global.CHAT_LOG.Error("DeleteRoom-->捕捉到tx.Error", "err", txDb.Error)
+			txDb.Rollback()
+		} else {
+			txDb.Commit()
+		}
+	}()
+
+	// 4、将 room 状态改为 StatusDelete
+	if err := txDb.Model(&mysql.Room{}).Where("id = ?", req.RoomId).Updates(map[string]interface{}{
+		"status":     constant.StatusDelete,
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}).Error; err != nil {
+		txDb.Error = err
+		global.CHAT_LOG.Error("DeleteRoom-->更新房间状态失败", "err", err.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+
+	// 5、删除 room_members 表中所有该房间的成员记录
+	if err := txDb.Where("room_id = ?", req.RoomId).Delete(&mysql.RoomMembers{}).Error; err != nil {
+		txDb.Error = err
+		global.CHAT_LOG.Error("DeleteRoom-->删除房间成员失败", "err", err.Error())
+		return common.NewServiceError(common.ERROR)
+	}
+
+	// 6、广播解散通知
+	delRoomMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeDelRoom,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, delRoomMsg)
+
+	// 7、从 WebSocket 管理器中删除房间
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).DelRoom(req.RoomId)
+
+	return nil
+}
+
 // UpdateRoomInfo 更新房间信息
 func (r *RoomService) UpdateRoomInfo(req room.UpdateRoomInfoRequest, userId string) error {
 	// 1、校验参数

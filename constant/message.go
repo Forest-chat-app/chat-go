@@ -36,4 +36,5 @@ var SystemMessageType = map[string]bool{
 	MessageTypeSystem:     true,
 	MessageTypeRoomUpdate: true,
 	MessageTypeDelMember:  true,
+	MessageTypeDelRoom:    true,
 }
