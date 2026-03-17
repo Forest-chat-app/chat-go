@@ -4,6 +4,7 @@ import (
 	"chat-server/constant"
 	"chat-server/global"
 	"chat-server/model/common"
+	"chat-server/model/mysql"
 	"chat-server/model/request/cdn"
 	"chat-server/utils"
 	"crypto/hmac"
@@ -98,5 +99,76 @@ func (cdnService *CdnService) GetPostSignature(subDir string) (cdn.GetPostSignat
 func (cdnService *CdnService) GetCdnUrl(url string) (cdn.GetCdnUrlResponse, error) {
 	return cdn.GetCdnUrlResponse{
 		Url: utils.GenerateCdnUrl(url),
+	}, nil
+}
+
+// GetUpdateFile 获取需要更新的资源（头像等）
+func (cdnService *CdnService) GetUpdateFile(req cdn.GetUpdateFileRequest) (map[string]interface{}, error) {
+	tx := global.CHAT_MYSQL
+
+	// --- 处理 rooms ---
+	roomResults := make([]cdn.GetUpdateFileRoomResult, 0)
+	if len(req.Rooms) > 0 {
+		// 构建 room_id -> 客户端 updated_at 的映射
+		roomIdToClientTs := make(map[string]int64, len(req.Rooms))
+		roomIds := make([]string, 0, len(req.Rooms))
+		for _, r := range req.Rooms {
+			roomIds = append(roomIds, r.RoomId)
+			roomIdToClientTs[r.RoomId] = r.UpdatedAt
+		}
+
+		// 一次查询取出所有匹配 room 的 id、avatar、updated_at
+		type roomRow struct {
+			ID        string
+			Avatar    string
+			UpdatedAt int64
+		}
+		var rows []roomRow
+		tx.Model(&mysql.Room{}).Select("id, avatar, updated_at").
+			Where("id IN ?", roomIds).Scan(&rows)
+
+		// Go 侧过滤：只保留 db.updated_at > client.updated_at 的记录
+		for _, row := range rows {
+			if row.UpdatedAt > roomIdToClientTs[row.ID] {
+				roomResults = append(roomResults, cdn.GetUpdateFileRoomResult{
+					RoomId: row.ID,
+					Avatar: utils.GenerateCdnUrl(row.Avatar),
+				})
+			}
+		}
+	}
+
+	// --- 处理 users ---
+	userResults := make([]cdn.GetUpdateFileUserResult, 0)
+	if len(req.Users) > 0 {
+		userIdToClientTs := make(map[string]int64, len(req.Users))
+		userIds := make([]string, 0, len(req.Users))
+		for _, u := range req.Users {
+			userIds = append(userIds, u.UserId)
+			userIdToClientTs[u.UserId] = u.UpdatedAt
+		}
+
+		type userRow struct {
+			ID        string
+			Avatar    string
+			UpdatedAt int64
+		}
+		var uRows []userRow
+		tx.Model(&mysql.User{}).Select("id, avatar, updated_at").
+			Where("id IN ?", userIds).Scan(&uRows)
+
+		for _, row := range uRows {
+			if row.UpdatedAt > userIdToClientTs[row.ID] {
+				userResults = append(userResults, cdn.GetUpdateFileUserResult{
+					UserId: row.ID,
+					Avatar: utils.GenerateCdnUrl(row.Avatar),
+				})
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"rooms": roomResults,
+		"users": userResults,
 	}, nil
 }

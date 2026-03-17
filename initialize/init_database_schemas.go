@@ -60,7 +60,7 @@ func initMySQLSchemaFromFile(ctx context.Context, scriptPath string) error {
 
 	sqlBytes, err := os.ReadFile(scriptPath)
 	if err != nil {
-		global.CHAT_LOG.Error(fmt.Sprintf("读取 MySQL Schema文件 '%s' 失败: %w", scriptPath, err))
+		global.CHAT_LOG.Error(fmt.Sprintf("读取 MySQL Schema文件 '%s' 失败: %v", scriptPath, err))
 		return err
 	}
 	sqlContent := string(sqlBytes)
@@ -69,7 +69,7 @@ func initMySQLSchemaFromFile(ctx context.Context, scriptPath string) error {
 
 	tx := global.CHAT_MYSQL.WithContext(ctx).Begin()
 	if tx.Error != nil {
-		global.CHAT_LOG.Error(fmt.Sprintf("开启MySQL事务失败: %w", tx.Error))
+		global.CHAT_LOG.Error(fmt.Sprintf("开启MySQL事务失败: %v", tx.Error))
 		return tx.Error
 	}
 
@@ -83,13 +83,13 @@ func initMySQLSchemaFromFile(ctx context.Context, scriptPath string) error {
 		}
 		if err := tx.Exec(sql).Error; err != nil {
 			tx.Rollback()
-			global.CHAT_LOG.Error(fmt.Sprintf("执行 MySQL SQL语句失败: %w\nSQL: %s", err, sql))
+			global.CHAT_LOG.Error(fmt.Sprintf("执行 MySQL SQL语句失败: %v\nSQL: %s", err, sql))
 			return err
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		global.CHAT_LOG.Error(fmt.Sprintf("提交MySQL事务失败: %w", err))
+		global.CHAT_LOG.Error(fmt.Sprintf("提交MySQL事务失败: %v", err))
 		return err
 	}
 

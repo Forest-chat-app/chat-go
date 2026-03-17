@@ -14,5 +14,6 @@ func (s *CdnRouter) InitCdnRouter(apiV1 *gin.RouterGroup) {
 	{
 		cdnGroup.GET("/getPostSignature", v1.ApiGroupApp.GetPostSignature)
 		cdnGroup.GET("/getCdnUrl", v1.ApiGroupApp.GetCdnUrl)
+		cdnGroup.POST("/getUpdateFile", v1.ApiGroupApp.GetUpdateFile)
 	}
 }

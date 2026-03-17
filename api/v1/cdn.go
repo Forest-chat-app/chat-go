@@ -67,3 +67,32 @@ func (cdnApi *CdnApi) GetCdnUrl(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 
 }
+
+// GetUpdateFile 获取更新资源
+// @Summary 获取更新资源
+// @Description 获取更新资源(rooms/users头像等静态资源)
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} common.Response "获取更新资源成功"
+// @Router /api/v1/cdn/getUpdateFile [post]
+func (cdnApi *CdnApi) GetUpdateFile(c *gin.Context) {
+	// 1、绑定请求参数
+	var req cdn.GetUpdateFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、处理业务
+	data, err := cdnService.GetUpdateFile(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}

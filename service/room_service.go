@@ -541,7 +541,7 @@ func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest, userId 
 		Type:      constant.MessageTypeRoomUpdate,
 		RoomId:    req.RoomId,
 		SenderId:  userId,
-		Content:   map[string]interface{}{"avatar": req.Avatar},
+		Content:   map[string]interface{}{"avatar": utils.GenerateCdnUrl(req.Avatar)},
 		CreatedAt: utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, updateRoomMsg)
