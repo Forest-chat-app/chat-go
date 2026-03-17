@@ -508,7 +508,7 @@ func (r *RoomService) UpdateRoomInfo(req room.UpdateRoomInfoRequest, userId stri
 }
 
 // UpdateRoomAvatar 更新房间头像
-func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest) error {
+func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest, userId string) error {
 	// 1、开启Mysql事务
 	tx := global.CHAT_MYSQL.Begin()
 	if tx.Error != nil {
@@ -535,5 +535,16 @@ func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest) error {
 		global.CHAT_LOG.Error("UpdateRoomAvatar-->更新用户头像失败", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
+
+	// 3、广播房间更新通知
+	updateRoomMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeRoomUpdate,
+		RoomId:    req.RoomId,
+		SenderId:  userId,
+		Content:   map[string]interface{}{"avatar": req.Avatar},
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, updateRoomMsg)
+
 	return nil
 }

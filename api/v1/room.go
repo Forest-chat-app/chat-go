@@ -154,7 +154,7 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 func (r *RoomApi) QuitRoom(c *gin.Context) {
 	// 1、校验参数
 	req := room.QuitRoomRequest{}
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		common.Result(c, common.INVALID_PARAMS)
 		return
 	}
@@ -400,8 +400,16 @@ func (r *RoomApi) UpdateRoomAvatar(c *gin.Context) {
 		return
 	}
 
+	// 2、获取userId
+	claims, exists := c.Get("claims")
+	if !exists {
+		common.Result(c, common.USER_NOT_FOUND)
+		return
+	}
+	userId := claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
+
 	// 3、更新用户头像
-	err := roomService.UpdateRoomAvatar(req)
+	err := roomService.UpdateRoomAvatar(req, userId)
 	if err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
