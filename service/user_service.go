@@ -339,6 +339,10 @@ func (s *UserService) UpdateUserProfile(req user.UpdateUserProfileRequest, userI
 		global.CHAT_LOG.Error("UpdateUserInfo-->更新用户信息失败", "err", err)
 		return nil, common.NewServiceError(common.ERROR)
 	}
+
+	// 4、更改客户端更新时间
+	client := &global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).Clients[userId][0]
+	(*client).UpdatedAt = updates["updated_at"].(int64)
 	return nil, nil
 }
 
@@ -361,14 +365,19 @@ func (s *UserService) UpdateUserAvatar(req user.UpdateUserAvatarRequest, userId 
 		}
 	}()
 	// 2、更新用户头像
+	updatedAt := utils.GetUTCMillisTimestamp()
 	if err := tx.Model(&mysql.User{}).Where("id = ?", userId).Updates(map[string]interface{}{
 		"avatar":     req.Avatar,
-		"updated_at": utils.GetUTCMillisTimestamp(),
+		"updated_at": updatedAt,
 	}).Error; err != nil {
 		tx.Error = err
 		global.CHAT_LOG.Error("UpdateUserAvatar-->更新用户头像失败", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
+
+	// 3、更改客户端更新时间
+	client := &global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).Clients[userId][0]
+	(*client).UpdatedAt = updatedAt
 	return nil
 }
 

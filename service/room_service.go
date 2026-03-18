@@ -373,16 +373,18 @@ func (r *RoomService) GetRoomMembers(req room.GetRoomMembersRequest) (map[string
 	members := make([]room.RoomMember, 0, len(roomMembers))
 	for _, member := range roomMembers {
 		var user mysql.User
-		tx.Select("id, nickname, avatar, email").First(&user, "id = ?", member.UserID)
+		tx.Select("id, nickname, avatar, email, created_at, updated_at").First(&user, "id = ?", member.UserID)
 		if user.ID == "" {
 			continue
 		}
 		members = append(members, room.RoomMember{
-			UserID:   user.ID,
-			Nickname: user.Nickname,
-			Avatar:   utils.GenerateCdnUrl(user.Avatar),
-			Email:    user.Email,
-			JoinedAt: member.JoinedAt,
+			UserID:    user.ID,
+			Nickname:  user.Nickname,
+			Avatar:    utils.GenerateCdnUrl(user.Avatar),
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			JoinedAt:  member.JoinedAt,
 		})
 	}
 
