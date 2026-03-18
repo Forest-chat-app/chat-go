@@ -18,12 +18,13 @@ import (
 
 // 客户端
 type Client struct {
-	Conn     *websocket.Conn
-	UserId   string
-	Send     chan *common.WebSocketMessage
-	LastPing time.Time
-	Manager  *WebSocketManager
-	mu       sync.Mutex
+	Conn      *websocket.Conn
+	UserId    string
+	Send      chan *common.WebSocketMessage
+	UpdatedAt int64
+	LastPing  time.Time
+	Manager   *WebSocketManager
+	mu        sync.Mutex
 }
 
 // WebSocket管理器
@@ -132,6 +133,10 @@ func (manager *WebSocketManager) UserLogoutByUserId(userId string) {
 func (manager *WebSocketManager) JoinRoom(roomId string, userId string) {
 	// 1、获取client
 	client := manager.Clients[userId]
+	if client == nil {
+		global.CHAT_LOG.Info("JoinRoom获取客户端为nil: ", userId)
+		return
+	}
 
 	// 2、把client加入到对应房间
 	manager.mu.Lock()
@@ -146,6 +151,10 @@ func (manager *WebSocketManager) JoinRoom(roomId string, userId string) {
 func (manager *WebSocketManager) LeaveRoom(roomId string, userId string) {
 	// 1、获取client
 	client := manager.Clients[userId]
+	if client == nil {
+		global.CHAT_LOG.Info("LeaveRoom获取客户端为nil: ", userId)
+		return
+	}
 
 	// 2、从该房间删除用户
 	manager.mu.Lock()
@@ -269,6 +278,7 @@ func (client *Client) ReadPump() {
 		}
 		// 解析json后，设置基本信息
 		wsMessage.SenderId = client.UserId
+		wsMessage.SenderUpdatedAt = client.UpdatedAt
 		wsMessage.CreatedAt = utils.GetUTCMillisTimestamp()
 		// 发送消息
 		client.Manager.Broadcast <- &wsMessage

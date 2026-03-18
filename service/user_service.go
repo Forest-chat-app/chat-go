@@ -265,6 +265,29 @@ func (s *UserService) GetUserInfo(userId string) (map[string]interface{}, error)
 	return data, nil
 }
 
+// GetUserAndRoom 获取用户信息及其所在房间ID列表
+func (s *UserService) GetUserAndRoom(userId string) (map[string]interface{}, error) {
+	tx := global.CHAT_MYSQL
+
+	// 1、获取用户信息
+	queryUser, err := utils.GetUserByID(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2、获取该用户所在的所有房间ID
+	var roomIDs []string
+	tx.Model(&mysql.RoomMembers{}).Where("user_id = ?", userId).Pluck("room_id", &roomIDs)
+	if roomIDs == nil {
+		roomIDs = []string{}
+	}
+
+	return map[string]interface{}{
+		"user":    queryUser,
+		"roomIDs": roomIDs,
+	}, nil
+}
+
 // UpdateUserProfile 更新用户信息
 func (s *UserService) UpdateUserProfile(req user.UpdateUserProfileRequest, userId string) (map[string]interface{}, error) {
 	// 1、开启mysql事务

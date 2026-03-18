@@ -54,6 +54,7 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 	} else {
 		userId = claims.(*jwt.Token).Claims.(*utils.AccessToken).UserID
 	}
+	user, _ := utils.GetUserByID(userId)
 
 	// 2、升级websocket连接
 	conn, err := global.CHAT_UPGRADER.Upgrade(c.Writer, c.Request, nil)
@@ -65,11 +66,12 @@ func (chatApi *ChatApi) WebSocketHandler(c *gin.Context) {
 	global.CHAT_LOG.Info("WebSocketHandler 升级websocket连接成功")
 	// 3、创建客户端
 	client := &core.Client{
-		Conn:     conn,
-		UserId:   userId,
-		Send:     make(chan *common.WebSocketMessage, 256),
-		LastPing: time.Now(),
-		Manager:  global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager),
+		Conn:      conn,
+		UserId:    userId,
+		Send:      make(chan *common.WebSocketMessage, 256),
+		UpdatedAt: user.UpdatedAt,
+		LastPing:  time.Now(),
+		Manager:   global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager),
 	}
 	// 3.1 上线客户端
 	client.Manager.Register <- client

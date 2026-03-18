@@ -51,6 +51,34 @@ func (r *RoomApi) CreateRoom(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 }
 
+// GetRoomInfo 获取房间信息
+// @Summary 获取房间信息
+// @Description 获取房间信息
+// @Tags 聊天
+// @Accept json
+// @Produce json
+// @Param room_id query string true "房间ID"
+// @Security BearerAuth
+// @Success      200      {object}  common.Response
+// @Router /api/v1/room/getRoomInfo [get]
+func (r *RoomApi) GetRoomInfo(c *gin.Context) {
+	req := room.GetRoomInfoRequest{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	data, err := roomService.GetRoomInfo(req)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
 // SearchRoom 搜索聊天室
 // @Summary 搜索聊天室
 // @Description 搜索聊天室

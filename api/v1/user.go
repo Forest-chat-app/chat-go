@@ -125,6 +125,35 @@ func (userApi *UserApi) GetUserInfo(c *gin.Context) {
 	common.Result(c, common.SUCCESS, data)
 }
 
+// GetUserAndRoom godoc
+// @Summary      获取用户和房间信息
+// @Description  根据user_id获取用户信息及其所在房间ID列表
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param        user_id  query  string  true  "用户ID"
+// @Success      200      {object}  common.Response
+// @Router       /api/v1/user/getUserAndRoom [get]
+func (userApi *UserApi) GetUserAndRoom(c *gin.Context) {
+	// 1、校验参数
+	var req user.GetUserAndRoomReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+
+	// 2、执行业务
+	data, err := userService.GetUserAndRoom(req.UserId)
+	if err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+		}
+		return
+	}
+	common.Result(c, common.SUCCESS, data)
+}
+
 // UpdateUserProfile godoc
 // @Summary      更新用户信息
 // @Description  更新用户信息，空串字段不修改

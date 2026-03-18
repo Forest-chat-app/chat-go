@@ -88,6 +88,24 @@ func (r *RoomService) CreateRoom(req room.CreateRoomRequest, userId string) (map
 	return data, nil
 }
 
+// GetRoomInfo 获取房间信息
+func (r *RoomService) GetRoomInfo(req room.GetRoomInfoRequest) (map[string]interface{}, error) {
+	if !utils.VerifyString(req.RoomId) {
+		return nil, common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	var queryRoom mysql.Room
+	global.CHAT_MYSQL.First(&queryRoom, "id = ?", req.RoomId)
+	if queryRoom.ID == "" {
+		return nil, common.NewServiceError(common.ROOM_NOT_FOUND)
+	}
+	queryRoom.Avatar = utils.GenerateCdnUrl(queryRoom.Avatar)
+
+	return map[string]interface{}{
+		"room": queryRoom,
+	}, nil
+}
+
 // SearchRoom 搜索房间
 func (r *RoomService) SearchRoom(req room.SearchRoomRequest) (map[string]interface{}, error) {
 	// 1、校验参数
@@ -215,11 +233,12 @@ func (r *RoomService) JoinRoom(req room.JoinRoomRequest, userId string) (map[str
 	// 5、发送加入消息
 	queryUser, _ := utils.GetUserByID(userId)
 	joinMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeJoin,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{"text": queryUser.Nickname + constant.JoinMessageContent},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeJoin,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{"text": queryUser.Nickname + constant.JoinMessageContent},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, joinMsg)
 	return nil, nil
@@ -271,11 +290,12 @@ func (r *RoomService) QuitRoom(req room.QuitRoomRequest, userId string) (map[str
 
 	// 6、发送退出消息
 	leaveMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeLeave,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{"userId": userId},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeLeave,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{"userId": userId},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, leaveMsg)
 
@@ -318,11 +338,12 @@ func (r *RoomService) DeleteRoomMembers(req room.DeleteRoomMembersRequest, userI
 
 	// 4、发送移除消息
 	delMemberMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeDelMember,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{"userIds": req.UserIds},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeDelMember,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{"userIds": req.UserIds},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, delMemberMsg)
 
@@ -439,11 +460,12 @@ func (r *RoomService) DeleteRoom(req room.DeleteRoomRequest, userId string) erro
 
 	// 6、广播解散通知
 	delRoomMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeDelRoom,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeDelRoom,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, delRoomMsg)
 
@@ -496,11 +518,12 @@ func (r *RoomService) UpdateRoomInfo(req room.UpdateRoomInfoRequest, userId stri
 
 	// 4、广播房间更新通知
 	updateRoomMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeRoomUpdate,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeRoomUpdate,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, updateRoomMsg)
 
@@ -538,11 +561,12 @@ func (r *RoomService) UpdateRoomAvatar(req room.UpdateRoomAvatarRequest, userId 
 
 	// 3、广播房间更新通知
 	updateRoomMsg := &common.WebSocketMessage{
-		Type:      constant.MessageTypeRoomUpdate,
-		RoomId:    req.RoomId,
-		SenderId:  userId,
-		Content:   map[string]interface{}{"avatar": utils.GenerateCdnUrl(req.Avatar)},
-		CreatedAt: utils.GetUTCMillisTimestamp(),
+		Type:            constant.MessageTypeRoomUpdate,
+		RoomId:          req.RoomId,
+		SenderId:        userId,
+		SenderUpdatedAt: 0, // 非聊天消息，不进行用户对比
+		Content:         map[string]interface{}{"avatar": utils.GenerateCdnUrl(req.Avatar)},
+		CreatedAt:       utils.GetUTCMillisTimestamp(),
 	}
 	global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager).BroadcastToRoom(req.RoomId, updateRoomMsg)
 

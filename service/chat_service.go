@@ -17,6 +17,7 @@ import (
 
 type ChatService struct{}
 
+// GetHistoryMsg 根据页码获取历史消息
 func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.HistoryMsgResponse, error) {
 	// 1、构建 Elasticsearch 查询
 	query := map[string]interface{}{
@@ -106,6 +107,7 @@ func (chatService *ChatService) GetHistoryMsg(req chat.HistoryMsgRequest) (chat.
 	}, nil
 }
 
+// SearchChat 搜索所有房间消息
 func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId string) (chat.SearchChatResponse, error) {
 	if req.Type == 1 {
 		// 类型1：搜索房间名称
@@ -254,6 +256,7 @@ func (chatService *ChatService) SearchChat(req chat.SearchChatRequest, userId st
 	return chat.SearchChatResponse{}, common.NewServiceError(common.INVALID_PARAMS)
 }
 
+// GetRoomMsg 搜索某个房间的消息
 func (chatService *ChatService) GetRoomMsg(req chat.GetRoomMsgReq) (chat.GetRoomMsgRsp, error) {
 	// 构建 Elasticsearch 查询，使用wildcard实现精准的子串匹配
 	query := map[string]interface{}{
