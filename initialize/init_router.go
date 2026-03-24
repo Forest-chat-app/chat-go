@@ -4,6 +4,7 @@ import (
 	"chat-server/global"
 	"chat-server/middleware"
 	"chat-server/router"
+	adminRouter "chat-server/router/admin"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -32,5 +33,9 @@ func InitRouter() {
 	router.RouterGroupApp.RoomRouter.InitRoomRouter(apiV1)
 	router.RouterGroupApp.TokenRouter.InitTokenRouter(apiV1)
 	router.RouterGroupApp.CdnRouter.InitCdnRouter(apiV1)
+
+	// 初始化管理端路由（独立路由组，有自己的 JWT 认证中间件）
+	adminR := new(adminRouter.AdminRouter)
+	adminR.InitAdminRouter(global.CHAT_ROUTERS.Group("/api/v1"))
 
 }

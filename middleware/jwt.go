@@ -17,6 +17,7 @@ var excludePaths = []string{
 	"/api/v1/user/test",
 	"/token/refreshToken",
 	"/swagger/",
+	"/api/v1/admin/login",
 }
 
 func JWTAuth() gin.HandlerFunc {
