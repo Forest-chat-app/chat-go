@@ -180,9 +180,13 @@ func (s *AdminUserService) BanUser(req reqAdmin.BanUserRequest) error {
 		return common.NewServiceError(common.ERROR)
 	}
 
-	// 2、踢出该用户所有WebSocket连接
+	// 2、踢出该用户所有WebSocket连接，并推送封禁消息
 	manager := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
-	manager.UserLogoutByUserId(req.UserId)
+	banMsg := &common.WebSocketMessage{
+		Type:      constant.MessageTypeBan,
+		CreatedAt: utils.GetUTCMillisTimestamp(),
+	}
+	manager.UserLogoutByUserId(req.UserId, banMsg)
 
 	// 3、撤销该用户在Redis中的所有token（扫描 refresh_token:{userID}:* 并删除）
 	ctx := context.Background()

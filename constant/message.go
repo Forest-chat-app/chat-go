@@ -16,6 +16,7 @@ const (
 	MessageTypeDelMember  = "del_member"  // 移除成员
 	MessageTypeDelRoom    = "del_room"    // 删除房间
 	MessageTypeSystem     = "system"      // 系统消息
+	MessageTypeBan        = "ban"
 
 	JoinMessageContent  = "已加入房间"
 	LeaveMessageContent = "已离开房间"

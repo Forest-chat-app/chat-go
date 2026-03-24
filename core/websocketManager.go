@@ -108,8 +108,8 @@ func (manager *WebSocketManager) UserLogout(client *Client) {
 	manager.mu.Unlock()
 }
 
-// UserLogoutByUserId 根据用户ID注销所有客户端连接
-func (manager *WebSocketManager) UserLogoutByUserId(userId string) {
+// UserLogoutByUserId 根据用户ID注销所有客户端连接，可选发送一条消息后再断开
+func (manager *WebSocketManager) UserLogoutByUserId(userId string, msg ...*common.WebSocketMessage) {
 	manager.mu.Lock()
 	clients, exists := manager.Clients[userId]
 	if !exists {
@@ -120,6 +120,13 @@ func (manager *WebSocketManager) UserLogoutByUserId(userId string) {
 		for roomId, roomClients := range manager.Rooms {
 			if _, exist := roomClients[client]; exist {
 				delete(manager.Rooms[roomId], client)
+			}
+		}
+		// 先同步写出消息，再关闭连接
+		if len(msg) > 0 && msg[0] != nil {
+			if jsonMsg, err := json.Marshal(msg[0]); err == nil {
+				client.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				client.Conn.WriteMessage(websocket.TextMessage, jsonMsg)
 			}
 		}
 		close(client.Send)
@@ -198,6 +205,74 @@ func (manager *WebSocketManager) BroadcastToRoom(roomId string, message *common.
 				delete(manager.Rooms[roomId], client)
 			}
 		}
+	}
+
+	// 保存用户消息到mongoDB
+	if constant.UserMessageType[message.Type] {
+		go func(message *common.WebSocketMessage) {
+			// 验证消息内容
+			content, isValid := validateUserMessage(message)
+			if !isValid {
+				global.CHAT_LOG.Error("WebSocket BroadcastToRoom----->消息内容验证失败", "message", message)
+			}
+			// 保存消息到mongoDB
+			mongoMsg := model.UserMessages{
+				ID:        bson.NewObjectID(),
+				RoomId:    message.RoomId,
+				SenderId:  message.SenderId,
+				Type:      message.Type,
+				Content:   content,
+				CreatedAt: message.CreatedAt,
+			}
+			if _, err := global.CHAT_MONGODB.Collection("user_messages").InsertOne(context.Background(), mongoMsg); err != nil {
+				global.CHAT_LOG.Error("WebSocket BroadcastToRoom----->保存消息到MongoDB失败", "err", err.Error())
+			}
+
+		}(message)
+	}
+	// 保存系统消息到mongoDB
+	if constant.SystemMessageType[message.Type] {
+		go func(message *common.WebSocketMessage) {
+			// 验证消息内容
+			content, isValid := validateSystemMessage(message)
+			if !isValid {
+				global.CHAT_LOG.Error("WebSocket BroadcastToRoom----->消息内容验证失败", "message", message)
+			}
+			// 保存消息到mongoDB
+			mongoMsg := model.SystemMessages{
+				ID:        bson.NewObjectID(),
+				RoomId:    message.RoomId,
+				SenderId:  message.SenderId,
+				Type:      message.Type,
+				Content:   content,
+				CreatedAt: message.CreatedAt,
+			}
+			if _, err := global.CHAT_MONGODB.Collection("system_messages").InsertOne(context.Background(), mongoMsg); err != nil {
+				global.CHAT_LOG.Error("WebSocket BroadcastToRoom----->保存消息到MongoDB失败", "err", err.Error())
+			}
+
+		}(message)
+	}
+
+}
+
+// BroadcastToUser 推送消息
+func (manager *WebSocketManager) BroadcastToUser(userId string, message *common.WebSocketMessage) {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+
+	// 1、获取client
+	client := manager.Clients[userId][0]
+	if client == nil {
+		global.CHAT_LOG.Info("JoinRoom获取客户端为nil: ", userId)
+		return
+	}
+
+	// 向指定用户发送消息
+	select {
+	case client.Send <- message:
+	default:
+		close(client.Send)
 	}
 
 	// 保存用户消息到mongoDB
