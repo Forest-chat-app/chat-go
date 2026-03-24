@@ -1,16 +1,20 @@
 package admin
 
 import (
+	"chat-server/constant"
+	"chat-server/core"
 	"chat-server/global"
 	"chat-server/model/common"
 	"chat-server/model/mysql"
 	reqAdmin "chat-server/model/request/admin"
 	"chat-server/utils"
+	"context"
+	"fmt"
 )
 
 type AdminUserService struct{}
 
-// ListUsers 用户列表（分页+关键词搜索）
+// ListUsers 用户列表（分页+关键词搜索，携带角色信息）
 func (s *AdminUserService) ListUsers(req reqAdmin.ListUsersRequest) (map[string]interface{}, error) {
 	if req.Page <= 0 {
 		req.Page = 1
@@ -31,15 +35,48 @@ func (s *AdminUserService) ListUsers(req reqAdmin.ListUsersRequest) (map[string]
 	var users []mysql.User
 	tx.Offset((req.Page - 1) * req.PageSize).Limit(req.PageSize).Find(&users)
 
+	// 批量查角色
+	userIDs := make([]string, 0, len(users))
 	for i := range users {
 		users[i].Avatar = utils.GenerateCdnUrl(users[i].Avatar)
+		userIDs = append(userIDs, users[i].ID)
+	}
+
+	var userRoles []mysql.UserRole
+	if len(userIDs) > 0 {
+		global.CHAT_MYSQL.Where("user_id IN ?", userIDs).Find(&userRoles)
+	}
+	// userID -> roleID
+	roleIDByUser := make(map[string]string, len(userRoles))
+	roleIDs := make([]string, 0, len(userRoles))
+	for _, ur := range userRoles {
+		roleIDByUser[ur.UserID] = ur.RoleID
+		roleIDs = append(roleIDs, ur.RoleID)
+	}
+	var roles []mysql.Role
+	if len(roleIDs) > 0 {
+		global.CHAT_MYSQL.Where("id IN ?", roleIDs).Find(&roles)
+	}
+	roleByID := make(map[string]mysql.Role, len(roles))
+	for _, r := range roles {
+		roleByID[r.ID] = r
+	}
+
+	type UserWithRole struct {
+		mysql.User
+		Role mysql.Role `json:"role"`
+	}
+	result := make([]UserWithRole, 0, len(users))
+	for _, u := range users {
+		rID := roleIDByUser[u.ID]
+		result = append(result, UserWithRole{User: u, Role: roleByID[rID]})
 	}
 
 	return map[string]interface{}{
 		"total":     total,
 		"page":      req.Page,
 		"page_size": req.PageSize,
-		"users":     users,
+		"users":     result,
 	}, nil
 }
 
@@ -132,37 +169,32 @@ func (s *AdminUserService) ResetUserPassword(req reqAdmin.ResetUserPasswordReque
 	return nil
 }
 
-// DeleteUser 删除用户（软删除：暂时直接物理删除user_role + user，注意实际场景根据业务决定）
-func (s *AdminUserService) DeleteUser(req reqAdmin.DeleteUserRequest) error {
-	tx := global.CHAT_MYSQL.Begin()
-	if tx.Error != nil {
+// BanUser 封禁用户（将状态改为2，并踢出所有在线连接）
+func (s *AdminUserService) BanUser(req reqAdmin.BanUserRequest) error {
+	// 1、将用户状态改为封禁
+	if err := global.CHAT_MYSQL.Model(&mysql.User{}).Where("id = ?", req.UserId).Updates(map[string]interface{}{
+		"status":     constant.UserStatusBanned,
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}).Error; err != nil {
+		global.CHAT_LOG.Error("AdminBanUser-->更新状态失败", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		} else if tx.Error != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
 
-	// 删除用户角色
-	if err := tx.Where("user_id = ?", req.UserId).Delete(&mysql.UserRole{}).Error; err != nil {
-		tx.Error = err
-		return common.NewServiceError(common.ERROR)
+	// 2、踢出该用户所有WebSocket连接
+	manager := global.CHAT_WEBSOCKET_MANAGER.(*core.WebSocketManager)
+	manager.UserLogoutByUserId(req.UserId)
+
+	// 3、撤销该用户在Redis中的所有token（扫描 refresh_token:{userID}:* 并删除）
+	ctx := context.Background()
+	pattern := fmt.Sprintf("%s:%s:*", constant.RefreshTokenPrefix, req.UserId)
+	keys, err := global.CHAT_REDIS.Keys(ctx, pattern).Result()
+	if err != nil {
+		global.CHAT_LOG.Error("AdminBanUser-->扫描token失败", "err", err)
+		return nil // 状态已改，token撤销失败不影响主流程
 	}
-	// 删除房间成员记录
-	if err := tx.Where("user_id = ?", req.UserId).Delete(&mysql.RoomMembers{}).Error; err != nil {
-		tx.Error = err
-		return common.NewServiceError(common.ERROR)
+	if len(keys) > 0 {
+		global.CHAT_REDIS.Del(ctx, keys...)
 	}
-	// 删除用户
-	if err := tx.Where("id = ?", req.UserId).Delete(&mysql.User{}).Error; err != nil {
-		tx.Error = err
-		global.CHAT_LOG.Error("AdminDeleteUser-->删除失败", "err", err)
-		return common.NewServiceError(common.ERROR)
-	}
+
 	return nil
 }

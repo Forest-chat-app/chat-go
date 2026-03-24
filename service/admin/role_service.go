@@ -34,18 +34,62 @@ func (s *AdminRoleService) ListRoles(req reqAdmin.ListRolesRequest) (map[string]
 	}, nil
 }
 
-// UpdateRole 修改角色描述
+// UpdateRole 修改角色（名称、描述均可改）
 func (s *AdminRoleService) UpdateRole(req reqAdmin.UpdateRoleRequest) error {
 	var role mysql.Role
 	if err := global.CHAT_MYSQL.First(&role, "id = ?", req.RoleId).Error; err != nil {
 		return common.NewServiceError(common.ROLE_NOT_FOUND)
 	}
 
-	if err := global.CHAT_MYSQL.Model(&mysql.Role{}).Where("id = ?", req.RoleId).Updates(map[string]interface{}{
-		"description": req.Description,
-		"updated_at":  utils.GetUTCMillisTimestamp(),
-	}).Error; err != nil {
+	updates := map[string]interface{}{
+		"updated_at": utils.GetUTCMillisTimestamp(),
+	}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.Description != "" {
+		updates["description"] = req.Description
+	}
+
+	if err := global.CHAT_MYSQL.Model(&mysql.Role{}).Where("id = ?", req.RoleId).Updates(updates).Error; err != nil {
 		global.CHAT_LOG.Error("AdminUpdateRole-->更新失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+	return nil
+}
+
+// CreateRole 创建角色
+func (s *AdminRoleService) CreateRole(req reqAdmin.CreateRoleRequest) error {
+	// 检查 role_id 是否已存在
+	var count int64
+	global.CHAT_MYSQL.Model(&mysql.Role{}).Where("role_id = ?", req.RoleId).Count(&count)
+	if count > 0 {
+		return common.NewServiceError(common.ResponseCode{Code: 421, Msg: "角色编号已存在"})
+	}
+
+	if err := global.CHAT_MYSQL.Create(&mysql.Role{
+		ID:          utils.GenerateUUid(),
+		Name:        req.Name,
+		Description: req.Description,
+		RoleId:      req.RoleId,
+		CreatedAt:   int(utils.GetUTCMillisTimestamp()),
+		UpdatedAt:   int(utils.GetUTCMillisTimestamp()),
+	}).Error; err != nil {
+		global.CHAT_LOG.Error("AdminCreateRole-->创建失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+	return nil
+}
+
+// DeleteRole 删除角色
+func (s *AdminRoleService) DeleteRole(req reqAdmin.DeleteRoleRequest) error {
+	var role mysql.Role
+	if err := global.CHAT_MYSQL.First(&role, "id = ?", req.RoleId).Error; err != nil {
+		return common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+
+	if err := global.CHAT_MYSQL.Where("id = ?", req.RoleId).Delete(&mysql.Role{}).Error; err != nil {
+		global.CHAT_LOG.Error("AdminDeleteRole-->删除失败", "err", err)
 		return common.NewServiceError(common.ERROR)
 	}
 	return nil

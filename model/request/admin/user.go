@@ -27,8 +27,8 @@ type ResetUserPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
-// DeleteUserRequest 删除用户
-type DeleteUserRequest struct {
+// BanUserRequest 封禁用户
+type BanUserRequest struct {
 	UserId string `json:"user_id" binding:"required"`
 }
 

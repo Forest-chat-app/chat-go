@@ -30,7 +30,7 @@ func (r *AdminRouter) InitAdminRouter(root *gin.RouterGroup) {
 			userGroup.PUT("/profile", adminApi.AdminUserApiApp.UpdateUserProfile)
 			userGroup.PUT("/avatar", adminApi.AdminUserApiApp.UpdateUserAvatar)
 			userGroup.PUT("/resetPassword", adminApi.AdminUserApiApp.ResetUserPassword)
-			userGroup.DELETE("/delete", adminApi.AdminUserApiApp.DeleteUser)
+			userGroup.DELETE("/ban", adminApi.AdminUserApiApp.BanUser)
 		}
 
 		// 房间管理
@@ -50,7 +50,9 @@ func (r *AdminRouter) InitAdminRouter(root *gin.RouterGroup) {
 		roleGroup := auth.Group("/role")
 		{
 			roleGroup.GET("/list", adminApi.AdminRoleApiApp.ListRoles)
+			roleGroup.POST("/create", adminApi.AdminRoleApiApp.CreateRole)
 			roleGroup.PUT("/update", adminApi.AdminRoleApiApp.UpdateRole)
+			roleGroup.DELETE("/delete", adminApi.AdminRoleApiApp.DeleteRole)
 		}
 
 		// 管理员管理（仅超级管理员）

@@ -51,7 +51,43 @@ func (a *AdminRoleApi) UpdateRole(c *gin.Context) {
 	common.Result(c, common.SUCCESS)
 }
 
-// ListAdmins 管理员列表（超级管理员专用）
+// CreateRole 创建角色
+func (a *AdminRoleApi) CreateRole(c *gin.Context) {
+	var req reqAdmin.CreateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	if err := adminSvc.AdminRoleServiceApp.CreateRole(req); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+			return
+		}
+		common.Result(c, common.ERROR)
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
+
+// DeleteRole 删除角色
+func (a *AdminRoleApi) DeleteRole(c *gin.Context) {
+	var req reqAdmin.DeleteRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	if err := adminSvc.AdminRoleServiceApp.DeleteRole(req); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+			return
+		}
+		common.Result(c, common.ERROR)
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
 func (a *AdminRoleApi) ListAdmins(c *gin.Context) {
 	var req reqAdmin.AdminListAdminsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

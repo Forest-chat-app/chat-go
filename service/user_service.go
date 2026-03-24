@@ -70,6 +70,7 @@ func (s *UserService) RegisterUser(req user.RegisterRequest, c *gin.Context) (ma
 		Nickname:    constant.Nickname,
 		Email:       constant.Email,
 		Avatar:      constant.UserAvatar,
+		Status:      constant.UserStatusNormal,
 		CreatedAt:   utils.GetUTCMillisTimestamp(),
 		UpdatedAt:   utils.GetUTCMillisTimestamp(),
 	}
@@ -173,6 +174,10 @@ func (s *UserService) LoginAccount(req user.LoginRequest, c *gin.Context) (map[s
 	}
 	if !match {
 		return nil, common.NewServiceError(common.PASSWORD_INVALID)
+	}
+	// 2.2 检查用户状态
+	if queryUser.Status != constant.UserStatusNormal {
+		return nil, common.NewServiceError(common.USER_BANNED)
 	}
 
 	// 2.2 检查redis是否已存在该登录平台的token，只允许单平台登录

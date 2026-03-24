@@ -108,14 +108,14 @@ func (a *AdminUserApi) ResetUserPassword(c *gin.Context) {
 	common.Result(c, common.SUCCESS)
 }
 
-// DeleteUser 删除用户
-func (a *AdminUserApi) DeleteUser(c *gin.Context) {
-	var req reqAdmin.DeleteUserRequest
+// BanUser 封禁用户
+func (a *AdminUserApi) BanUser(c *gin.Context) {
+	var req reqAdmin.BanUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.Result(c, common.INVALID_PARAMS)
 		return
 	}
-	if err := adminSvc.AdminUserServiceApp.DeleteUser(req); err != nil {
+	if err := adminSvc.AdminUserServiceApp.BanUser(req); err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
 			common.Result(c, serviceErr.GetResponseCode())
