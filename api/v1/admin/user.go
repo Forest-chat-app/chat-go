@@ -108,7 +108,24 @@ func (a *AdminUserApi) ResetUserPassword(c *gin.Context) {
 	common.Result(c, common.SUCCESS)
 }
 
-// BanUser 封禁用户
+// UnbanUser 解封用户
+func (a *AdminUserApi) UnbanUser(c *gin.Context) {
+	var req reqAdmin.UnbanUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	if err := adminSvc.AdminUserServiceApp.UnbanUser(req); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+			return
+		}
+		common.Result(c, common.ERROR)
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
 func (a *AdminUserApi) BanUser(c *gin.Context) {
 	var req reqAdmin.BanUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,6 +133,25 @@ func (a *AdminUserApi) BanUser(c *gin.Context) {
 		return
 	}
 	if err := adminSvc.AdminUserServiceApp.BanUser(req); err != nil {
+		var serviceErr common.ServiceErr
+		if errors.As(err, &serviceErr) {
+			common.Result(c, serviceErr.GetResponseCode())
+			return
+		}
+		common.Result(c, common.ERROR)
+		return
+	}
+	common.Result(c, common.SUCCESS)
+}
+
+// AdminCreateUser 管理端创建用户
+func (a *AdminUserApi) AdminCreateUser(c *gin.Context) {
+	var req reqAdmin.AdminCreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.Result(c, common.INVALID_PARAMS)
+		return
+	}
+	if err := adminSvc.AdminUserServiceApp.AdminCreateUser(req); err != nil {
 		var serviceErr common.ServiceErr
 		if errors.As(err, &serviceErr) {
 			common.Result(c, serviceErr.GetResponseCode())

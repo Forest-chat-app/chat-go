@@ -31,6 +31,8 @@ func (r *AdminRouter) InitAdminRouter(root *gin.RouterGroup) {
 			userGroup.PUT("/avatar", adminApi.AdminUserApiApp.UpdateUserAvatar)
 			userGroup.PUT("/resetPassword", adminApi.AdminUserApiApp.ResetUserPassword)
 			userGroup.DELETE("/ban", adminApi.AdminUserApiApp.BanUser)
+			userGroup.PUT("/unban", adminApi.AdminUserApiApp.UnbanUser)
+			userGroup.POST("/create", adminApi.AdminUserApiApp.AdminCreateUser)
 		}
 
 		// 房间管理

@@ -32,6 +32,21 @@ type BanUserRequest struct {
 	UserId string `json:"user_id" binding:"required"`
 }
 
+// UnbanUserRequest 解封用户
+type UnbanUserRequest struct {
+	UserId string `json:"user_id" binding:"required"`
+}
+
+// AdminCreateUserRequest 管理端创建用户
+type AdminCreateUserRequest struct {
+	UserAccount string `json:"user_account" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	// role_id 只允许 1002（普通管理员）或 1003（普通用户），不传默认 1003
+	RoleId   int16  `json:"role_id"`
+	Nickname string `json:"nickname"`
+	Email    string `json:"email"`
+}
+
 // GetUserDetailRequest 获取用户详情
 type GetUserDetailRequest struct {
 	UserId string `form:"user_id" binding:"required"`

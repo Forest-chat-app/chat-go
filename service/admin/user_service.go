@@ -169,7 +169,103 @@ func (s *AdminUserService) ResetUserPassword(req reqAdmin.ResetUserPasswordReque
 	return nil
 }
 
-// BanUser 封禁用户（将状态改为2，并踢出所有在线连接）
+// UnbanUser 解封用户
+func (s *AdminUserService) UnbanUser(req reqAdmin.UnbanUserRequest) error {
+	result := global.CHAT_MYSQL.Model(&mysql.User{}).Where("id = ?", req.UserId).Update("status", constant.UserStatusNormal)
+	if result.Error != nil {
+		global.CHAT_LOG.Error("AdminUnbanUser-->更新状态失败", "err", result.Error)
+		return common.NewServiceError(common.ERROR)
+	}
+	if result.RowsAffected == 0 {
+		return common.NewServiceError(common.USER_ID_NOT_FOUND)
+	}
+	return nil
+}
+
+// AdminCreateUser 管理端创建用户
+func (s *AdminUserService) AdminCreateUser(req reqAdmin.AdminCreateUserRequest) error {
+	// 校验 role_id，只允许 1002 或 1003，默认 1003
+	if req.RoleId == 0 {
+		req.RoleId = constant.RoleNormalUser
+	}
+	if req.RoleId != constant.RoleCommonAdmin && req.RoleId != constant.RoleNormalUser {
+		return common.NewServiceError(common.INVALID_PARAMS)
+	}
+
+	// 检查账号是否已存在
+	var count int64
+	global.CHAT_MYSQL.Model(&mysql.User{}).Where("user_account = ?", req.UserAccount).Count(&count)
+	if count > 0 {
+		return common.NewServiceError(common.USER_ACCOUNT_EXISTS)
+	}
+
+	hashed, err := utils.GenerateFromPassword(req.Password)
+	if err != nil || hashed == "" {
+		return common.NewServiceError(common.ERROR)
+	}
+
+	nickname := req.Nickname
+	if nickname == "" {
+		nickname = constant.Nickname
+	}
+	email := req.Email
+
+	tx := global.CHAT_MYSQL.Begin()
+	if tx.Error != nil {
+		return common.NewServiceError(common.ERROR)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		} else if tx.Error != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	userID := utils.GenerateUUid()
+	now := utils.GetUTCMillisTimestamp()
+	newUser := mysql.User{
+		ID:          userID,
+		UserAccount: req.UserAccount,
+		Password:    hashed,
+		Nickname:    nickname,
+		Email:       email,
+		Avatar:      constant.UserAvatar,
+		Status:      constant.UserStatusNormal,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if err := tx.Create(&newUser).Error; err != nil {
+		tx.Error = err
+		global.CHAT_LOG.Error("AdminCreateUser-->创建用户失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+
+	// 查对应角色
+	var queryRole mysql.Role
+	tx.First(&queryRole, "role_id = ?", req.RoleId)
+	if queryRole.ID == "" {
+		tx.Error = fmt.Errorf("role not found")
+		return common.NewServiceError(common.ROLE_NOT_FOUND)
+	}
+	userRole := mysql.UserRole{
+		ID:        utils.GenerateUUid(),
+		UserID:    userID,
+		RoleID:    queryRole.ID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := tx.Create(&userRole).Error; err != nil {
+		tx.Error = err
+		global.CHAT_LOG.Error("AdminCreateUser-->创建用户角色失败", "err", err)
+		return common.NewServiceError(common.ERROR)
+	}
+
+	return nil
+}
+
 func (s *AdminUserService) BanUser(req reqAdmin.BanUserRequest) error {
 	// 1、将用户状态改为封禁
 	if err := global.CHAT_MYSQL.Model(&mysql.User{}).Where("id = ?", req.UserId).Updates(map[string]interface{}{
